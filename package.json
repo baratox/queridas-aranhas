@@ -4,7 +4,11 @@
   "description": "Programinha que ama bisbilhotar a vida política...",
   "main": "xereta.js",
   "dependencies": {
-    "commander": "^2.14.0"
+    "bfj": "^5.2.0",
+    "cheerio": "^1.0.0-rc.2",
+    "commander": "^2.14.0",
+    "fs-extra": "^5.0.0",
+    "request": "^2.83.0"
   },
   "devDependencies": {},
   "scripts": {
