@@ -11,7 +11,7 @@ ENV PATH "$PATH:./node_modules/.bin/"
 
 VOLUME /usr/xeretas
 
-RUN echo '#!/bin/bash\n/usr/local/bin/node /usr/xeretas/xereta.js $*' > /usr/local/bin/xereta && \
+RUN echo '#!/bin/bash\n/usr/local/bin/node /usr/xeretas/index.js $*' > /usr/local/bin/xereta && \
     chmod +x /usr/local/bin/xereta
 
 CMD ["/usr/local/bin/xereta", "--help"]
