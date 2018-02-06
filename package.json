@@ -1,0 +1,15 @@
+{
+  "name": "xereta",
+  "version": "0.1.0",
+  "description": "Programinha que ama bisbilhotar a vida política...",
+  "main": "xereta.js",
+  "dependencies": {
+    "commander": "^2.14.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
