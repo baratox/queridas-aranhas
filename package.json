@@ -5,6 +5,7 @@
   "main": "xereta.js",
   "dependencies": {
     "bfj": "^5.2.0",
+    "bottleneck": "^2.0.1",
     "cheerio": "^1.0.0-rc.2",
     "commander": "^2.14.0",
     "fs-extra": "^5.0.0",
