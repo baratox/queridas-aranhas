@@ -3,17 +3,18 @@ const glob = require('glob');
 
 program.version('1')
     .action(function(env){
-        console.log("Xereta")
+        console.log("Queridas amigas que fazem o trabalho pesado de entender esse " +
+                    "mundo da política através dos dados disponíveis.");
     });
 
-program.command('executa [alvo]').alias('x')
+program.command('xeretem [alvo]').alias('x')
     .description("Executa um xereta ou todos os xeretas, se [alvo] for um diretório.\n" +
                  "Se não especificado, todos são executados.")
     .action(function(alvo, options){
         try {
             if (!alvo) { alvo = "" };
             // Matches any .js, in any subdirectory of "alvo".
-            glob.sync('./lib/' + alvo + '{,*.js,**/*.js}', { nodir: true })
+            glob.sync('./xeretas/' + alvo + '{,*.js,**/*.js}', { nodir: true })
                 .forEach(function(x) {
                     console.log("[", x, "]");
                     require(x)();
@@ -26,8 +27,8 @@ program.command('executa [alvo]').alias('x')
     }).on('--help', function() {
         console.log('  Examplos:');
         console.log();
-        console.log('    $ xereta x camara.leg.br/passaportes');
-        console.log('    $ xereta x camara.leg.br');
+        console.log('    $ queridas x camara.leg.br/passaportes');
+        console.log('    $ queridas x camara');
         console.log();
     });
 

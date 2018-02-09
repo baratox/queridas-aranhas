@@ -1,19 +1,18 @@
 version: '3'
 services:
-    xeretas:
+    queridas:
         build: .
         command: bash
         volumes:
-            - ./:/usr/xeretas/
+            - ./:/usr/queridas/
         links:
             - db
     db:
         image: postgres:10.2-alpine
         restart: always
         environment:
-            PGDATA: /var/lib/postgresql/data/re7
-            POSTGRES_USER: xereta
+            PGDATA: /var/lib/postgresql/data/fatos/
             POSTGRES_PASSWORD: must be changed.
         volumes:
-            - ./data/postgresql/:/var/lib/postgresql/data/re7/
+            - ./data/postgresql/:/var/lib/postgresql/data/fatos/
 
