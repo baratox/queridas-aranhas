@@ -1,12 +1,12 @@
 const request = require('request');
 const cheerio = require('cheerio');
-const bfj = require('bfj');
-const fs = require('fs-extra');
 
 const Bottleneck = require("bottleneck");
 
-const OUTPUT_DIR = 'data/camara.leg.br/';
-const OUTPUT = OUTPUT_DIR + 'deputados.json';
+const json = require('../../util/json');
+
+
+const OUTPUT = 'data/camara.leg.br/deputados.json';
 
 /**
  * [Deputados](http://www2.camara.leg.br/transparencia/dados-abertos/dados-abertos-legislativo/webservices/deputados/deputados)
@@ -16,60 +16,25 @@ const OUTPUT = OUTPUT_DIR + 'deputados.json';
  * filiações partidárias e lideranças.
  */
 
-function convertXmlToJson(body, selector) {
-    var records = [];
-
-    var xmlTagToJson = function(record, elem) {
-        $(elem).children().each(function(i, tag) {
-            $tag = $(tag);
-            if ($tag.children().length == 0) {
-                record[$tag[0].name] = $tag.text();
-            } else {
-                record[$tag[0].name] = {};
-                xmlTagToJson(record[$tag[0].name], tag);
-            }
-        });
-    }
-
-    const $ = cheerio.load(body, { xmlMode: true });
-    $(selector).each(function(i, elem) {
-        var record = {};
-        xmlTagToJson(record, elem);
-        records.push(record);
-    });
-
-    return records;
-}
-
 function deputados() {
     request(
         'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterDeputados',
         function (error, response, body) {
             if (error) return console.error(error);
 
-            var records = convertXmlToJson(body, 'deputados deputado');
+            var records = json.fromXml(body, 'deputados deputado');
 
             var writtenToDisk = false;
 
             // Rate limit the request for details to give the server some rest.
-            var bottleneck = new Bottleneck({ maxConcurrent: 10 })
+            var bottleneck = new Bottleneck({ maxConcurrent: 5 })
                     .on('error', function(error) {
                         console.error(error);
                     }).on('idle', function() {
                         // Execute after some timeout to give time for the last submitted request
                         // to finish.
                         setTimeout(function() {
-                            console.log("Gravando", records.length, "registros em", OUTPUT);
-
-                            fs.ensureDir(OUTPUT_DIR).then(function() {
-                                bfj.write(OUTPUT, records)
-                                    .then(function() {
-                                        console.info("Os", records.length, "deputados foram salvos em", OUTPUT);
-                                        writtenToDisk = true;
-                                    }).catch(function(error) {
-                                        console.error(error, error.stack);
-                                    });
-                            });
+                            json.write(records, OUTPUT);
                         }, 5000);
             })
 
@@ -87,7 +52,9 @@ function deputados() {
                             throw new Error("Flushed before job finised.");
                         }
 
-                        record['detalhes'] = convertXmlToJson(details, 'Deputado')[0];
+                        console.log("  Got details for", record.ideCadastro, "-- Status ", response.statusCode);
+
+                        record['detalhes'] = json.fromXml(details, 'Deputado')[0];
                     });
             });
         }

@@ -1,10 +1,10 @@
 const request = require('request');
 const cheerio = require('cheerio');
-const bfj = require('bfj');
-const fs = require('fs-extra');
 
-const OUTPUT_DIR = 'data/camara.leg.br/';
-const OUTPUT = OUTPUT_DIR + 'passaportes.json';
+const json = require('../../util/json');
+
+
+const OUTPUT = 'data/camara.leg.br/passaportes.json';
 
 /**
  * [Viagens oficiais e passaportes](http://www2.camara.leg.br/transparencia/viagens-oficiais-e-passaportes)
@@ -37,16 +37,7 @@ function passaportes() {
                 });
             });
 
-            console.log("Gravando", passaportes.length, "registros em", OUTPUT);
-
-            fs.ensureDir(OUTPUT_DIR).then(function() {
-                bfj.write(OUTPUT, passaportes)
-                    .then(function() {
-                        console.info("Os", passaportes.length, "passaportes foram salvos em", OUTPUT);
-                    }).catch(function(error) {
-                        console.error(error, error.stack);
-                    });
-            });
+            json.write(passaportes, OUTPUT);
         }
     );
 }
