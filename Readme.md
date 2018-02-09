@@ -5,12 +5,13 @@
 Ferramentas usadas para o desenvolvimento:
 
 * [Docker](https://docker.com/)
+* [Docker Compose](https://docs.docker.com/compose)
 
 Crie um contêiner no Docker com:
 
-    $ sudo docker build -t xeretas ./
+    $ docker-compose build
 
 Execute o aplicativo ou qualquer outro comando dentro do contêiner:
 
-    $ sudo docker run -it --rm --volume=$(pwd):/usr/xeretas/ xeretas
-    $ sudo docker run -it --rm --volume=$(pwd):/usr/xeretas/ xeretas bash
+    $ docker-compose run xeretas xereta x
+    $ docker-compose run xeretas bash
