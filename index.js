@@ -1,6 +1,8 @@
 const program = require('commander');
 const glob = require('glob');
 
+const model = require('./model');
+
 program.version('1')
     .action(function(env){
         console.log("Queridas amigas que fazem o trabalho pesado de entender esse " +
@@ -31,6 +33,31 @@ program.command('xeretem [alvo]').alias('x')
         console.log('    $ queridas x camara');
         console.log();
     });
+
+program.command('db:sync')
+    .description("Cria as tabelas no banco de dados, de acordo com o modelo.")
+    .action(function(options) {
+        model.sequelize.sync( { force: true })
+            .then(function() {
+                console.log("Banco de Dados criado.");
+            }).catch(function(error) {
+                console.error("Falha ao criar BD.", error);
+                return -600;
+            });
+    });
+
+program.command('db:drop')
+    .description("Remove todas as tabelas do banco de dados.")
+    .action(function(options) {
+        model.sequelize.drop()
+            .then(function() {
+                console.log("Banco de Dados excluído.");
+            }).catch(function(error) {
+                console.error("Falha ao excluir tabelas.", error);
+                return -600;
+            });
+    });
+
 
 program.command('*')
     .action(function(env){
