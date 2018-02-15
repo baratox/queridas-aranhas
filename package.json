@@ -1,8 +1,8 @@
 {
-  "name": "xereta",
+  "name": "queridas",
   "version": "0.1.0",
   "description": "Programinha que ama bisbilhotar a vida política...",
-  "main": "xereta.js",
+  "main": "queridas.js",
   "dependencies": {
     "bfj": "^5.2.0",
     "bottleneck": "^2.0.1",
