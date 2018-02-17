@@ -1,27 +1,41 @@
 const request = require('request');
-const cheerio = require('cheerio');
+const Partido = require('../../model').Partido;
+const crawlXml = require('../crawl-xml.js');
 
-const json = require('../../util/json');
+module.exports = {
+    name: "Partidos",
+    describe: "Partidos com representação na Câmara dos Deputados."
+};
 
+// Handles response
+var handleResponse = crawlXml({
+    select: 'partidos partido',
 
-const OUTPUT = 'data/camara.leg.br/partidos.json';
+    // Parses a XML record into an object with Partido data
+    parse: function($) {
+        // TODO Filter with https://www.npmjs.com/package/string
+        var p = {};
+        p['sigla'] = $('siglaPartido').text();
+        p['nome'] = $('nomePartido').text();
+        // TODO Parse dates
+        // p['dataCriacao'] = $('dataCriacao').text();
+        // p['dataExtincao'] = $('dataExtincao').text();
+        return p;
+    },
 
-/**
- * [Deputados](http://www2.camara.leg.br/transparencia/dados-abertos/dados-abertos-legislativo/webservices/deputados/deputados)
- *
- * Partidos com representação na Câmara dos Deputados.
- */
+    // Finds a Partido object in the database that corresponds to the
+    // record under review. If it does not exist, creates and saves it
+    // to the database.
+    findOrCreate: function(partido) {
+        // TODO Validate on Sequelize
+        return Partido.findOrCreate({ where: { 'sigla': partido.sigla },
+                                      defaults: partido });
+    }
+});
 
-function crawl() {
-    request(
-        'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterPartidosCD',
-        function (error, response, xml) {
-            if (error) return console.error(error);
-
-            var records = json.fromXml(xml, 'partidos partido');
-            json.write(records, OUTPUT);
-        }
-    );
-}
-
-module.exports = crawl;
+// Request call parameters
+module.exports.command = [
+    request,
+    'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterPartidosCD',
+    handleResponse
+];

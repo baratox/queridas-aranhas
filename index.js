@@ -1,7 +1,18 @@
 const program = require('commander');
 const glob = require('glob');
 
+const Bottleneck = require("bottleneck");
+
 const model = require('./model');
+
+const limiter = new Bottleneck({
+    maxConcurrent: 1,
+    minTime: 500
+}).on('error', function(error) {
+    console.error("Job failed.", error);
+}).on('idle', function() {
+    console.info("All jobs finished.");
+});
 
 program.version('1')
     .action(function(env){
@@ -19,7 +30,17 @@ program.command('xeretem [alvo]').alias('x')
             glob.sync('./xeretas/' + alvo + '{,*.js,**/*.js}', { nodir: true })
                 .forEach(function(x) {
                     console.log("[", x, "]");
-                    require(x)();
+                    var crawler = require(x);
+                    if (crawler.command && Array.isArray(crawler.command)) {
+                        console.info("Scheduling", crawler.name);
+                        // Schedule as a rate-limitted job
+                        var cmd = Array.from(crawler.command);
+                        limiter.submit.apply(limiter, cmd);
+
+                    } else {
+                        // Run as a function
+                        crawler();
+                    }
                 });
 
         } catch(error) {
