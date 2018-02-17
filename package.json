@@ -12,7 +12,8 @@
     "glob": "^7.1.2",
     "pg": "^7.4.1",
     "request": "^2.83.0",
-    "sequelize": "^4.33.3"
+    "sequelize": "^4.33.3",
+    "string": "^3.3.3"
   },
   "devDependencies": {},
   "scripts": {

@@ -13,10 +13,11 @@ var handleResponse = crawlXml({
 
     // Parses a XML record into an object with Partido data
     parse: function($) {
-        // TODO Filter with https://www.npmjs.com/package/string
+        var t = (selector) => S($(selector).text()).collapseWhitespace();
+
         var p = {};
-        p['sigla'] = $('siglaPartido').text();
-        p['nome'] = $('nomePartido').text();
+        p['sigla'] = t('siglaPartido').strip('*');
+        p['nome'] = t('nomePartido');
         // TODO Parse dates
         // p['dataCriacao'] = $('dataCriacao').text();
         // p['dataExtincao'] = $('dataExtincao').text();
