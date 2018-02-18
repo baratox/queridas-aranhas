@@ -5,7 +5,8 @@ const Sequelize = require('sequelize');
 const sequelize = new Sequelize('fatos', 'postgres', 'must be changed.', {
     host: 'db',
     dialect: 'postgres',
-    operatorsAliases: false
+    operatorsAliases: false,
+    logging: false
 });
 
 const BASENAME = path.basename(__filename);
