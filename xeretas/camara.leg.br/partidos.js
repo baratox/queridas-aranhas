@@ -1,42 +1,41 @@
-const request = require('request');
 const Partido = require('../../model').Partido;
 const crawlXml = require('../crawl-xml.js');
 
+const S = require('string');
+const date = require('date-and-time');
+
 module.exports = {
     name: "Partidos",
-    describe: "Partidos com representação na Câmara dos Deputados."
-};
+    describe: "Partidos com representação na Câmara dos Deputados.",
 
-// Handles response
-var handleResponse = crawlXml({
-    select: 'partidos partido',
+    command: crawlXml({
+        request: 'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterPartidosCD',
 
-    // Parses a XML record into an object with Partido data
-    parse: function($) {
-        var t = (selector) => S($(selector).text()).collapseWhitespace();
+        select: 'partidos partido',
 
-        var p = {};
-        p['sigla'] = t('siglaPartido').strip('*');
-        p['nome'] = t('nomePartido');
-        // TODO Parse dates
-        // p['dataCriacao'] = $('dataCriacao').text();
-        // p['dataExtincao'] = $('dataExtincao').text();
-        return p;
-    },
+        // Parses a XML record into an object with Partido data
+        parse: function($) {
+            var t = (selector) => S($(selector).text()).collapseWhitespace();
+            var d = (selector) => {
+                var parsed = date.parse(t(selector).s, 'DD/MM/YYYY');
+                return isNaN(parsed) ? null : parsed;
+            }
 
-    // Finds a Partido object in the database that corresponds to the
-    // record under review. If it does not exist, creates and saves it
-    // to the database.
-    findOrCreate: function(partido) {
-        // TODO Validate on Sequelize
-        return Partido.findOrCreate({ where: { 'sigla': partido.sigla },
-                                      defaults: partido });
-    }
-});
+            var p = {};
+            p['sigla'] = t('siglaPartido').s;
+            p['nome'] = t('nomePartido').s;
+            p['dataCriacao'] = d('dataCriacao');
+            p['dataExtincao'] = d('dataExtincao');
+            return p;
+        },
 
-// Request call parameters
-module.exports.command = [
-    request,
-    'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterPartidosCD',
-    handleResponse
-];
+        // Finds a Partido object in the database that corresponds to the
+        // record under review. If it does not exist, creates and saves it
+        // to the database.
+        findOrCreate: function(partido) {
+            // TODO Validate on Sequelize
+            return Partido.findOrCreate({ where: { 'sigla': partido.sigla },
+                                          defaults: partido });
+        }
+    })
+}

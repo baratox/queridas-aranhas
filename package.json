@@ -8,10 +8,12 @@
     "bottleneck": "^2.0.1",
     "cheerio": "^1.0.0-rc.2",
     "commander": "^2.14.0",
+    "date-and-time": "^0.6.2",
     "fs-extra": "^5.0.0",
     "glob": "^7.1.2",
     "pg": "^7.4.1",
     "request": "^2.83.0",
+    "request-promise-native": "^1.0.5",
     "sequelize": "^4.33.3",
     "string": "^3.3.3"
   },

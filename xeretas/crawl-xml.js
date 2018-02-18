@@ -1,63 +1,99 @@
+const request = require('request-promise-native');
 const cheerio = require('cheerio');
+const date = require('date-and-time');
+
+function createRequest(request) {
+    if (typeof request === 'string' || request instanceof String) {
+        request = {
+            uri: request
+        }
+    }
+
+    if (!request['transform']) {
+        // Load the XML body with cheerio
+        request['transform'] = function(body) {
+            return cheerio.load(body, { xmlMode: true });
+        };
+    }
+
+    return request;
+}
 
 function filterNew(response, object) {
-    if (object) {
-        Object.keys(response).forEach((field) => {
-            if (object[field] !== undefined) {
-                if (object[field] == response[field]) {
-                    // Ignore fields that haven't changed.
-                    delete response[field];
-
-                } else if (response[field] !== undefined) {
-                    console.warn(object.name, object['id'], field,
-                        "\"" + object[field] + "\"", "differs from the",
-                        "\"" + response[field] + "\" received.");
-                    // Ignore fields that are different.
-                    // TODO Keep both versions...
-                    delete response[field];
-                }
-            }
-        });
+    function datesEqual(d1, d2) {
+        d1 = d1 ? date.parse(d1, 'YYYY-MM-DD').valueOf() : false;
+        d2 = d2 ? d2.valueOf() : false;
+        return d1 == d2;
     }
+
+    Object.keys(response).forEach((field) => {
+        if (object && object[field] != undefined) {
+            if (object[field] == response[field] ||
+                    datesEqual(object[field], response[field])) {
+                // Ignore fields that haven't changed.
+                delete response[field];
+
+            } else if (response[field] != undefined) {
+                console.warn(object.constructor.name, object['id'] + "'s",
+                    "[" + field +"]", typeof object[field],
+                    "\"" + object[field] + "\"", "differs from the",
+                    typeof response[field], "\"" + response[field] + "\" received.");
+
+                if (typeof object[field] == Date) {
+                    console.log("Date:", object[field].getTime());
+                }
+
+                // Ignore fields that are different.
+                // TODO Keep both versions...
+                delete response[field];
+            }
+        }
+
+        if (response[field] == undefined || isNaN(response[field])) {
+            delete response[field];
+        }
+    });
 
     return response;
 }
 
 function crawlXml(options) {
-    return function(error, response, body) {
-        // TODO If it's a temporal problem, retry.
-        if (error) return console.error(error);
+    return function() {
+        return request(createRequest(options.request))
+            .catch((error) => {
+                // TODO If it's a temporal problem, retry.
+                console.error(error);
+            }).then(($) => {
+                var promises = [];
+                $(options.select).each((i, elem) => {
+                    const $elem = cheerio.load(elem, { xmlMode: true });
+                    var p = options.parse($elem);
 
-        console.debug("   Response", response.statusCode, response.request.href);
+                    var promise = options.findOrCreate(p).spread((object, created) => {
+                        if (!created) {
+                            p = filterNew(p, object);
+                            // Update the record with all NEW fields
+                            if (Object.keys(p).length !== 0) {
+                                return object.update(p)
+                                    .then((obj) => console.debug("Updated:", p))
+                                    .error((e) => console.error("Error:", e));
 
-        var promises = [];
+                            } else {
+                                // console.debug("Up to date.");
+                            }
 
-        const $ = cheerio.load(body, { xmlMode: true });
-        $(options.select).each((i, elem) => {
-            const $elem = cheerio.load(elem, { xmlMode: true });
-            var p = options.parse($elem);
-            console.debug("      ", i);
+                        } else {
+                            console.debug("Created:", object.dataValues);
+                        }
+                    }).catch((error) => {
+                        console.error(error);
+                    });
 
-            var promise = options.findOrCreate(p).spread((object, created) => {
-                if (!created) {
-                    p = filterNew(p, object);
-                    // Update the record with all NEW fields
-                    if (p.length > 0) {
-                        object.update(p).error((e) => console.error("Error:", e));
-                        console.debug("         Updated:", p);
-                    } else {
-                        console.debug("         Up to date.");
-                    }
+                    promises.push(promise);
+                });
 
-                } else {
-                    console.debug("         Created:", object);
-                }
+                return Promise.all(promises);
             });
-
-            promises.push(promise);
-        });
-
-        return Promise.all(promises);
     }
 }
 

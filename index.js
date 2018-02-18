@@ -7,11 +7,12 @@ const model = require('./model');
 
 const limiter = new Bottleneck({
     maxConcurrent: 1,
-    minTime: 500
+    minTime: 5000
 }).on('error', function(error) {
     console.error("Job failed.", error);
 }).on('idle', function() {
     console.info("All jobs finished.");
+    process.exit(0);
 });
 
 program.version('1')
@@ -31,17 +32,18 @@ program.command('xeretem [alvo]').alias('x')
                 .forEach(function(x) {
                     console.log("[", x, "]");
                     var crawler = require(x);
-                    if (crawler.command && Array.isArray(crawler.command)) {
+                    if (crawler.command) {
                         console.info("Scheduling", crawler.name);
                         // Schedule as a rate-limitted job
-                        var cmd = Array.from(crawler.command);
-                        limiter.submit.apply(limiter, cmd);
+                        limiter.schedule(crawler.command);
 
                     } else {
                         // Run as a function
                         crawler();
                     }
                 });
+
+            return limiter;
 
         } catch(error) {
             console.error(error);
@@ -58,24 +60,26 @@ program.command('xeretem [alvo]').alias('x')
 program.command('db:sync')
     .description("Cria as tabelas no banco de dados, de acordo com o modelo.")
     .action(function(options) {
-        model.sequelize.sync( { force: true })
+        return model.sequelize.sync( { force: true })
             .then(function() {
                 console.log("Banco de Dados criado.");
+                process.exit(0);
             }).catch(function(error) {
                 console.error("Falha ao criar BD.", error);
-                return -600;
+                process.exit(-1);
             });
     });
 
 program.command('db:drop')
     .description("Remove todas as tabelas do banco de dados.")
     .action(function(options) {
-        model.sequelize.drop()
+        return model.sequelize.drop()
             .then(function() {
                 console.log("Banco de Dados excluído.");
+                process.exit(0);
             }).catch(function(error) {
                 console.error("Falha ao excluir tabelas.", error);
-                return -600;
+                process.exit(-1);
             });
     });
 
