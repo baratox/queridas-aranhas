@@ -22,7 +22,10 @@ fs.readdirSync(__dirname)
         return (file.indexOf('.') !== 0) && (file !== BASENAME) && (file.slice(-3) === '.js');
     }).forEach(function(file) {
         var m = sequelize.import(path.join(__dirname, file));
-        model[m.name] = m;
+        if (!Array.isArray(m)) {
+            m = [m];
+        }
+        m.forEach((m) => model[m.name] = m);
     });
 
 // Gives the schemas a chance to register relationships that depend on

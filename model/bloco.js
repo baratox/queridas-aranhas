@@ -7,10 +7,21 @@ module.exports = function(sequelize, DataTypes) {
             autoIncrement: true,
             primaryKey: true
         },
+        // Id attributed to it in camara.leg.br services
+        idCamara: DataTypes.INTEGER,
         nome: DataTypes.STRING,
-        dataCriacao: DataTypes.DATEONLY,
-        dataExtincao: DataTypes.DATEONLY
+        criacao: DataTypes.DATEONLY,
+        extincao: DataTypes.DATEONLY
     });
 
-    return Bloco;
+    var BlocoPartido = sequelize.define('BlocoPartido', {
+        adesao: DataTypes.DATEONLY,
+        desligamento: DataTypes.DATEONLY
+    });
+
+    Bloco.associate = function(model) {
+        model.Bloco.belongsToMany(model.Partido, { through: model.BlocoPartido });
+    };
+
+    return [Bloco, BlocoPartido];
 };

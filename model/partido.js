@@ -13,8 +13,8 @@ module.exports = function(sequelize, DataTypes) {
         dataExtincao: DataTypes.DATEONLY
     });
 
-    Partido.associate = function(models) {
-        models.Partido.belongsToMany(models.Bloco, { through: 'PartidosBloco' });
+    Partido.associate = function(model) {
+        model.Partido.belongsToMany(model.Bloco, { through: model.BlocoPartido });
     };
 
     return Partido;
