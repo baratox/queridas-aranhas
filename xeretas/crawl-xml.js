@@ -1,17 +1,26 @@
 const request = require('request-promise-native');
 const cheerio = require('cheerio');
 const date = require('date-and-time');
+const S = require('string');
+
+const { writeText } = require('../util/json');
 
 function createRequest(request) {
     if (typeof request === 'string' || request instanceof String) {
         request = {
-            uri: request
+            url: request
         }
     }
 
     if (!request['transform']) {
         // Load the XML body with cheerio
         request['transform'] = function(body) {
+            // Save the raw response to the disk
+            var file = S(request.url)
+                .chompLeft('https://').chompLeft('http://')
+                .replaceAll('/', '_').replaceAll(':', '');
+            writeText(body, 'data/' + file + ".xml");
+
             return cheerio.load(body, { xmlMode: true });
         };
     }
