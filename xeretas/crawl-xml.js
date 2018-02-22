@@ -3,9 +3,12 @@ const cheerio = require('cheerio');
 const date = require('date-and-time');
 const S = require('string');
 
+const scrape = require('../util/scrape');
+
 const { writeText } = require('../util/json');
 
-function createRequest(request) {
+function createRequest(options) {
+    var request = options.request;
     if (typeof request === 'string' || request instanceof String) {
         request = {
             url: request
@@ -21,8 +24,12 @@ function createRequest(request) {
                 .replaceAll('/', '_').replaceAll(':', '');
             writeText(body, 'data/' + file + ".xml");
 
-            return cheerio.load(body, { xmlMode: true });
+            return scrape.xml(options.select).as(options.schema)
+                         .scrape(body);
         };
+
+    } else {
+        throw Error('Conflicting request.transform already defined.');
     }
 
     return request;
@@ -71,17 +78,14 @@ function filterNew(response, object) {
 
 function crawlXml(options) {
     return function() {
-        return request(createRequest(options.request))
+        return request(createRequest(options))
             .catch((error) => {
                 // TODO If it's a temporary problem, retry.
                 console.error(error);
-            }).then(($) => {
+            }).then((records) => {
                 var promises = [];
 
-                $(options.select).each((i, elem) => {
-                    const $elem = cheerio.load(elem, { xmlMode: true });
-                    var parsed = options.parse($elem);
-
+                records.forEach((parsed, i) => {
                     var promise = options.findOrCreate(parsed).spread(
                         function(object, created) {
                             if (!created) {

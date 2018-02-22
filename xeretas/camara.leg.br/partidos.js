@@ -13,21 +13,13 @@ module.exports = {
 
         select: 'partidos partido',
 
-        // Parses a XML record into an object with Partido data
-        parse: function($) {
-            var t = (selector) => S($(selector).text()).collapseWhitespace();
-            var d = (selector) => {
-                var parsed = date.parse(t(selector).s, 'DD/MM/YYYY');
-                return isNaN(parsed) ? null : parsed;
-            }
-
-            var p = {};
-            p['sigla'] = t('siglaPartido').s;
-            p['nome'] = t('nomePartido').s;
-            p['dataCriacao'] = d('dataCriacao');
-            p['dataExtincao'] = d('dataExtincao');
-            return p;
-        },
+        // Parses a XML response into an object with Partido data.
+        schema: (scrape) => ({
+            sigla: scrape('siglaPartido').as.text(),
+            nome: scrape('nomePartido').as.text(),
+            dataCriacao: scrape('dataCriacao').as.date(),
+            dataExtincao: scrape('dataExtincao').as.date()
+        }),
 
         // Finds a Partido object in the database that corresponds to the
         // record under review. If it does not exist, creates and saves it
