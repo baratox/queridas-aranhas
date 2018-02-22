@@ -35,18 +35,21 @@ function filterNew(response, object) {
         return d1 == d2;
     }
 
+    var filtered = {};
     Object.keys(response).forEach((field) => {
-        if (object && object[field] != undefined) {
-            if (object[field] == response[field] ||
-                    datesEqual(object[field], response[field])) {
-                // Ignore fields that haven't changed.
-                delete response[field];
+        filtered[field] = response[field];
 
-            } else if (response[field] != undefined) {
+        if (object && object[field] != undefined) {
+            if (object[field] == filtered[field] ||
+                    datesEqual(object[field], filtered[field])) {
+                // Ignore fields that haven't changed.
+                delete filtered[field];
+
+            } else if (filtered[field] != undefined) {
                 console.warn(object.constructor.name, object['id'] + "'s",
                     "[" + field +"]", typeof object[field],
                     "\"" + object[field] + "\"", "differs from the",
-                    typeof response[field], "\"" + response[field] + "\" received.");
+                    typeof filtered[field], "\"" + filtered[field] + "\" received.");
 
                 if (typeof object[field] == Date) {
                     console.log("Date:", object[field].getTime());
@@ -54,47 +57,53 @@ function filterNew(response, object) {
 
                 // Ignore fields that are different.
                 // TODO Keep both versions...
-                delete response[field];
+                delete filtered[field];
             }
         }
 
-        if (response[field] == undefined || isNaN(response[field])) {
-            delete response[field];
+        if (filtered[field] == undefined || isNaN(filtered[field])) {
+            delete filtered[field];
         }
     });
 
-    return response;
+    return filtered;
 }
 
 function crawlXml(options) {
     return function() {
         return request(createRequest(options.request))
             .catch((error) => {
-                // TODO If it's a temporal problem, retry.
+                // TODO If it's a temporary problem, retry.
                 console.error(error);
             }).then(($) => {
                 var promises = [];
+
                 $(options.select).each((i, elem) => {
                     const $elem = cheerio.load(elem, { xmlMode: true });
-                    var p = options.parse($elem);
+                    var parsed = options.parse($elem);
 
-                    var promise = options.findOrCreate(p).spread((object, created) => {
-                        if (!created) {
-                            p = filterNew(p, object);
-                            // Update the record with all NEW fields
-                            if (Object.keys(p).length !== 0) {
-                                return object.update(p)
-                                    .then((obj) => console.debug("Updated:", p))
-                                    .error((e) => console.error("Error:", e));
+                    var promise = options.findOrCreate(parsed).spread(
+                        function(object, created) {
+                            if (!created) {
+                                var changed = filterNew(parsed, object);
+                                // Update the record with all NEW fields
+                                if (Object.keys(changed).length !== 0) {
+                                    var update = object.update(changed)
+                                        .then((obj) => console.debug("Updated:", changed))
+                                        .error((e) => console.error("Error:", e));
+                                    return [parsed, update, changed];
+
+                                } else {
+                                    console.info("" + object.id, "didn't change.");
+                                }
 
                             } else {
-                                // console.debug("Up to date.");
+                                console.debug("Created:", object.dataValues);
                             }
 
-                        } else {
-                            console.debug("Created:", object.dataValues);
+                            return [parsed, object];
                         }
-                    }).catch((error) => {
+                    ).catch((error) => {
                         console.error(error);
                     });
 
