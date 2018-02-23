@@ -20,7 +20,9 @@ function createRequest(options) {
             // Save the raw response to the disk
             var filename = S(request.url).chompLeft('https://')
                 .chompLeft('http://').replaceAll('/', '_').replaceAll(':', '');
-            writeText(body, 'data/' + filename + ".xml");
+            filename = 'data/' + filename.s + '.xml';
+            writeText(body, filename);
+            console.debug("Reponse written to", filename);
 
             // Scrape the body and return
             var scraped = scrape.xml(options.select)
@@ -45,12 +47,12 @@ function findAndUpdateOrCreate(findOrCreate, record) {
     var promise = findOrCreate(record)
         .spread((object, created) => {
             if (created) {
-                console.debug("Created", object.id);
+                console.debug("Created", object.constructor.name, object.id);
                 return [object, record];
             } else {
                 return object.update(record).then(
                     (object) => {
-                        console.debug("Updated", object.id,
+                        console.debug("Updated", object.constructor.name, object.id,
                             "with the latest data.");
                         return [object, record];
                     }
@@ -63,7 +65,9 @@ function findAndUpdateOrCreate(findOrCreate, record) {
 
 function crawlXml(options) {
     const defaultOptions = {
-        spread: []
+        findOrCreate: () => { throw Error("findOrCreate is not defined.") },
+        schema: () => { throw Error("schema is not defined.") },
+        spread: null
     };
 
     options = Object.assign({}, defaultOptions, options);
@@ -77,11 +81,12 @@ function crawlXml(options) {
                 var promises = [];
 
                 records.forEach((record, i) => {
+                    // if (i > 0) { return };
                     var promise = findAndUpdateOrCreate(options.findOrCreate, record);
 
-                    // Chain all options.spread handlers in sequence.
-                    for (handler in options.spread) {
-                        promise = promise.spread(handler);
+                    // Chain all options.spread in sequence.
+                    if (typeof options.spread == 'function') {
+                        promise = promise.spread(options.spread);
                     }
 
                     promise.catch((error) => {
