@@ -15,12 +15,22 @@ module.exports = function(sequelize, DataTypes) {
     });
 
     var BlocoPartido = sequelize.define('BlocoPartido', {
+        id: {
+            type: DataTypes.INTEGER,
+            autoIncrement: true,
+            primaryKey: true
+        },
         adesao: DataTypes.DATEONLY,
         desligamento: DataTypes.DATEONLY
     });
 
     Bloco.associate = function(model) {
-        model.Bloco.belongsToMany(model.Partido, { through: model.BlocoPartido });
+        model.Bloco.belongsToMany(model.Partido, {
+            through: {
+                model: model.BlocoPartido,
+                unique: false
+            }
+        });
     };
 
     return [Bloco, BlocoPartido];
