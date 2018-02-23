@@ -11,8 +11,9 @@ const limiter = new Bottleneck({
 }).on('error', function(error) {
     console.error("Job failed.", error);
 }).on('idle', function() {
-    console.info("All jobs finished.");
-    process.exit(0);
+    console.info("All jobs should have finished. Will exit in 3s.");
+    console.info("Any activity log below this line indicates an error.");
+    setTimeout(() => { process.exit(0); }, 3000);
 });
 
 program.version('1')
