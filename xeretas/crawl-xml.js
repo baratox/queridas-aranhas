@@ -85,17 +85,17 @@ function crawlXml(options) {
             }).then((records) => {
                 var promises = [];
 
-                records.forEach((parsed, i) => {
-                    var promise = options.findOrCreate(parsed).spread(
+                records.forEach((record, i) => {
+                    var promise = options.findOrCreate(record).spread(
                         function(object, created) {
                             if (!created) {
-                                var changed = filterNew(parsed, object);
+                                var changed = filterNew(record, object);
                                 // Update the record with all NEW fields
                                 if (Object.keys(changed).length !== 0) {
                                     var update = object.update(changed)
                                         .then((obj) => console.debug("Updated:", changed))
                                         .error((e) => console.error("Error:", e));
-                                    return [parsed, update, changed];
+                                    return [record, update, changed];
 
                                 } else {
                                     console.info("" + object.id, "didn't change.");
@@ -105,7 +105,7 @@ function crawlXml(options) {
                                 console.debug("Created:", object.dataValues);
                             }
 
-                            return [parsed, object];
+                            return [record, object];
                         }
                     ).catch((error) => {
                         console.error(error);
