@@ -1,5 +1,6 @@
 const program = require('commander');
 const glob = require('glob');
+const path = require('path');
 
 const Bottleneck = require("bottleneck");
 
@@ -29,20 +30,23 @@ program.command('xeretem [alvo]').alias('x')
         try {
             if (!alvo) { alvo = "" };
             // Matches any .js, in any subdirectory of "alvo".
-            glob.sync('./xeretas/' + alvo + '{,*.js,**/*.js}', { nodir: true })
-                .forEach(function(x) {
-                    console.log("[", x, "]");
-                    var crawler = require(x);
-                    if (crawler.command) {
-                        console.info("Scheduling", crawler.name);
-                        // Schedule as a rate-limitted job
-                        limiter.schedule(crawler.command);
+            glob.sync(alvo + '{,*.js}', {
+                cwd: path.join(__dirname, '/xeretas/'),
+                nodir: true,
+                matchBase:true
+            }).forEach(function(x) {
+                console.log("[", x, "]");
+                var crawler = require(path.join(__dirname, '/xeretas/', x));
+                if (crawler.command) {
+                    console.info("Scheduling", crawler.name);
+                    // Schedule as a rate-limitted job
+                    limiter.schedule(crawler.command);
 
-                    } else {
-                        // Run as a function
-                        crawler();
-                    }
-                });
+                } else {
+                    // Run as a function
+                    crawler();
+                }
+            });
 
             return limiter;
 
