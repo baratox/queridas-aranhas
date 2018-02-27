@@ -31,9 +31,23 @@ module.exports = {
             partido: scrape('partido').as.text()
         }),
 
-        findOrCreate: (deputado) => Deputado.findOrCreate({
-            where: { 'idCamara': deputado.idCamara },
-            defaults: deputado
-        })
+        findOrCreate: (deputado) => {
+            return Partido.findOne({
+                where: { sigla: deputado.partido },
+                attributes: ['id']
+            }).then((partido) => {
+                if (partido) {
+                    console.debug("Partido", deputado.partido, "is", partido.id);
+                    deputado.PartidoId = partido.id;
+                }
+
+                return Deputado.findOrCreate({
+                    where: { 'idCamara': deputado.idCamara },
+                    defaults: deputado,
+                    include: [Partido]
+                });
+            })
+
+        }
     })
 }

@@ -27,7 +27,7 @@ module.exports = function(sequelize, DataTypes) {
     });
 
     Deputado.associate = function(model) {
-        model.Deputado.belongsTo(model.Partido, { as: 'partido' });
+        model.Deputado.belongsTo(model.Partido);
     };
 
     return [Deputado];
