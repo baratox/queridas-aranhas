@@ -1,22 +1,9 @@
-const request = require('request');
-const cheerio = require('cheerio');
-const S = require('string');
-const date = require('date-and-time');
-
-const json = require('../../util/json');
 const crawlXml = require('../crawl-xml.js');
 
-const { Bloco, Partido, BlocoPartido } = require('../../model');
+const { Bloco, Partido } = require('../../model');
 
 
-
-const OUTPUT = 'data/camara.leg.br/blocos-partidarios.json';
-
-/**
- * [Deputados](http://www2.camara.leg.br/transparencia/dados-abertos/dados-abertos-legislativo/webservices/deputados/deputados)
- *
- * Blocos de Partidos com representação na Câmara dos Deputados.
- */
+// Identifies a Bloco and/or Partido in log messages.
 function id(bloco, partido) {
     var id = "";
     if (bloco != null) {

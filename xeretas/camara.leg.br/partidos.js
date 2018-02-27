@@ -1,8 +1,7 @@
-const Partido = require('../../model').Partido;
 const crawlXml = require('../crawl-xml.js');
 
-const S = require('string');
-const date = require('date-and-time');
+const Partido = require('../../model').Partido;
+
 
 module.exports = {
     name: "Partidos",
