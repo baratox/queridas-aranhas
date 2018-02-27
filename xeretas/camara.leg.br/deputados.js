@@ -1,64 +1,39 @@
-const request = require('request');
-const cheerio = require('cheerio');
+const crawlXml = require('../crawl-xml.js');
 
-const Bottleneck = require("bottleneck");
-
-const json = require('../../util/json');
+const { Deputado, Partido } = require('../../model');
 
 
-const OUTPUT = 'data/camara.leg.br/deputados.json';
+module.exports = {
+    name: "Deputados",
+    describe: "Deputados em exercício na Câmara dos Deputados, incluindo os detalhes " +
+              "dos deputados com histórico de participação em comissões, períodos de exercício, " +
+              "filiações partidárias e lideranças.",
 
-/**
- * [Deputados](http://www2.camara.leg.br/transparencia/dados-abertos/dados-abertos-legislativo/webservices/deputados/deputados)
- *
- * Retorna os deputados em exercício na Câmara dos Deputados, incluindo os detalhes
- * dos deputados com histórico de participação em comissões, períodos de exercício,
- * filiações partidárias e lideranças.
- */
+    command: crawlXml({
+        request: 'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterDeputados',
 
-function deputados() {
-    request(
-        'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterDeputados',
-        function (error, response, body) {
-            if (error) return console.error(error);
+        select: 'deputados deputado',
 
-            var records = json.fromXml(body, 'deputados deputado');
+        schema: (scrape) => ({
+            idCamara: scrape('ideCadastro').as.number(),
+            idParlamentar: scrape('idParlamentar').as.number(),
+            matricula: scrape('matricula').as.number(),
+            condicao: scrape('condicao').as.text(),
+            nome: scrape('nome').as.text(),
+            nomeParlamentar: scrape('nomeParlamentar').as.text(),
+            genero: scrape('sexo').as.text(),
+            foto: scrape('urlFoto').as.text(),
+            uf: scrape('uf').as.text(),
+            gabinete: scrape('gabinete').as.number(),
+            anexo: scrape('anexo').as.number(),
+            fone: scrape('fone').as.text(),
+            email: scrape('email').as.text(),
+            partido: scrape('partido').as.text()
+        }),
 
-            var writtenToDisk = false;
-
-            // Rate limit the request for details to give the server some rest.
-            var bottleneck = new Bottleneck({ maxConcurrent: 5 })
-                    .on('error', function(error) {
-                        console.error(error);
-                    }).on('idle', function() {
-                        // Execute after some timeout to give time for the last submitted request
-                        // to finish.
-                        setTimeout(function() {
-                            json.write(records, OUTPUT);
-                        }, 5000);
-            })
-
-            // Get the datails for each Deputado from another webservice.
-            records.forEach(function(record) {
-                bottleneck.submit(
-                    request,
-                    {   url: 'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterDetalhesDeputado',
-                        qs: { ideCadastro: record.ideCadastro,
-                              numLegislatura: '' }},
-                    function(err, resp, details) {
-                        if (err) return console.error(err);
-                        if (writtenToDisk) {
-                            // The results were written to the disk before this request for details was finished.
-                            throw new Error("Flushed before job finised.");
-                        }
-
-                        console.log("  Got details for", record.ideCadastro, "-- Status ", response.statusCode);
-
-                        record['detalhes'] = json.fromXml(details, 'Deputado')[0];
-                    });
-            });
-        }
-    );
+        findOrCreate: (deputado) => Deputado.findOrCreate({
+            where: { 'idCamara': deputado.idCamara },
+            defaults: deputado
+        })
+    })
 }
-
-module.exports = deputados;
