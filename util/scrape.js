@@ -3,13 +3,16 @@ const date = require('date-and-time');
 const S = require('string');
 
 function removeEmpty(obj) {
-    Object.keys(obj).forEach(function(key) {
-        if (obj[key] && typeof obj[key] === 'object') {
-            removeEmpty(obj[key]);
-        } else if (obj[key] == null) {
-            delete obj[key];
-        }
-    });
+    if (obj) {
+        Object.keys(obj).forEach(function(key) {
+            if (obj[key] && typeof obj[key] === 'object') {
+                removeEmpty(obj[key]);
+            } else if (obj[key] == null) {
+                delete obj[key];
+            }
+        });
+    }
+
 };
 
 function SchemaParser(schema) {

@@ -80,6 +80,10 @@ function crawlXml(options) {
             }).then((records) => {
                 var promises = [];
 
+                if (!records) {
+                    return Promise.resolve();
+                }
+
                 records.forEach((record, i) => {
                     // if (i > 0) { return };
                     var promise = findAndUpdateOrCreate(options.findOrCreate, record);
