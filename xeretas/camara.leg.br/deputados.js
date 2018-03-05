@@ -1,4 +1,4 @@
-const crawlXml = require('../crawl-xml.js');
+const crawl = require('../crawl.js');
 
 const { Deputado, Partido } = require('../../model');
 
@@ -9,7 +9,7 @@ module.exports = {
               "dos deputados com histórico de participação em comissões, períodos de exercício, " +
               "filiações partidárias e lideranças.",
 
-    command: crawlXml({
+    command: crawl.xml({
         request: 'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterDeputados',
 
         select: 'deputados deputado',

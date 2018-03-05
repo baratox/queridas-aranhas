@@ -1,4 +1,4 @@
-const crawlXml = require('../crawl-xml.js');
+const crawl = require('../crawl.js');
 
 const Partido = require('../../model').Partido;
 
@@ -7,7 +7,7 @@ module.exports = {
     name: "Partidos",
     describe: "Partidos com representação na Câmara dos Deputados.",
 
-    command: crawlXml({
+    command: crawl.xml({
         request: 'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterPartidosCD',
 
         select: 'partidos partido',

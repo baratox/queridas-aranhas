@@ -77,7 +77,7 @@ function findAndUpdateOrCreate(findOrCreate, record) {
         });
 }
 
-function crawl(options) {
+function crawler(options) {
     const defaultOptions = {
         scrape: null,
         schema: null,
@@ -124,4 +124,55 @@ function crawl(options) {
     }
 }
 
-module.exports = crawl;
+function crawlXml(options) {
+    if (!options.scrape) {
+        // Scrape uses a schema to parse
+        if (!options.schema) {
+            throw Error("Option 'schema' is required.");
+        }
+        if (!options.select) {
+            throw Error("Option 'select' is required.");
+        }
+
+        options.scrape = (body) => scrape.xml(options.select)
+            .as(options.schema).scrape(body);
+    }
+
+    return crawler(options);
+}
+
+function crawlJson(options) {
+    if (!options.scrape) {
+        if (!options.select) {
+            throw Error("Option 'select' is required.");
+        }
+
+        options.scrape = (body) => {
+            var select = options.select;
+            if (!Array.isArray(select)) {
+                select = ("" + select).split('[ \.]');
+            }
+
+            console.debug("Selecting", select);
+
+            var scraped = JSON.parse(body);
+            select.forEach((selector) => {
+                if (scraped.hasOwnProperty(selector)) {
+                    scraped = scraped[selector];
+                } else {
+                    console.error("Unmatched selector:", selector);
+                }
+            })
+
+            return scraped;
+        }
+    }
+
+    return crawler(options);
+}
+
+module.exports = {
+    raw: (options) => crawler(options),
+    xml: (options) => crawlXml(options),
+    json: (options) => crawlJson(options),
+};
