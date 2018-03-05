@@ -143,29 +143,16 @@ function crawlXml(options) {
 
 function crawlJson(options) {
     if (!options.scrape) {
+        // Scrape uses a schema to parse
+        if (!options.schema) {
+            throw Error("Option 'schema' is required.");
+        }
         if (!options.select) {
             throw Error("Option 'select' is required.");
         }
 
-        options.scrape = (body) => {
-            var select = options.select;
-            if (!Array.isArray(select)) {
-                select = ("" + select).split('[ \.]');
-            }
-
-            console.debug("Selecting", select);
-
-            var scraped = JSON.parse(body);
-            select.forEach((selector) => {
-                if (scraped.hasOwnProperty(selector)) {
-                    scraped = scraped[selector];
-                } else {
-                    console.error("Unmatched selector:", selector);
-                }
-            })
-
-            return scraped;
-        }
+        options.scrape = (body) => scrape.json(options.select)
+            .as(options.schema).scrape(body);
     }
 
     return crawler(options);

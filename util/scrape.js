@@ -35,10 +35,12 @@ function SchemaParser(schema) {
                     var parsed = parseInt(value, 10);
                     return isNaN(parsed) ? null : parsed;
                 }
-                as.date = function() {
+                as.date = function(format) {
                     var value = extract(elem);
                     if (value) {
-                        var parsed = date.parse(value, 'DD/MM/YYYY');
+                        // Convert all non-digit separators to /
+                        value = value.replace(/[^\d]/g, '/');
+                        var parsed = date.parse(value, format || 'DD/MM/YYYY');
                         return isNaN(parsed) ? null : parsed;
                     } else {
                         return null;
@@ -107,4 +109,74 @@ function XmlScraper() {
     });
 }
 
+function JsonScraper() {
+    var scrapeJson = (content, selector, schema) => {
+        var json = JSON.parse(content);
+
+        // Select inside each element
+        function jsonSelect(json, selector) {
+            if (!Array.isArray(selector)) {
+                selector = ("" + selector).split('[ \.]');
+            }
+
+            var selected = json;
+            selector.forEach((s) => {
+                if (selected.hasOwnProperty(s)) {
+                    selected = selected[s];
+                } else {
+                    console.error("Unmatched selector:", s);
+                    return null;
+                }
+            });
+
+            return selected;
+        }
+
+        var extract = (el, schema) => {
+            var evaluate;
+
+            if (schema) {
+                var sub = SchemaParser(schema);
+                evaluate = (elem) => {
+                    var select = (selector) => jsonSelect(elem, selector);
+                    return sub(elem, select, extract);
+                }
+            } else {
+                evaluate = (selector) => jsonSelect(el, selector);
+            }
+
+            if (!Array.isArray(el)) {
+                return el;
+
+            } else if (el.length > 1) {
+                var data = [];
+                el.forEach((element) => {
+                    var record = evaluate(element);
+                    if (record != null) {
+                        data.push(record);
+                    }
+                });
+
+                return data;
+
+            } else {
+                return null;
+            }
+        }
+
+        var data = extract(jsonSelect(json, selector), schema);
+        removeEmpty(data);
+        return data;
+    }
+
+    return (selector) => ({
+        as: (schema) => ({
+            scrape: (content) =>
+                scrapeJson(content, selector, schema)
+        })
+    });
+}
+
+
 module.exports.xml = XmlScraper();
+module.exports.json = JsonScraper();
