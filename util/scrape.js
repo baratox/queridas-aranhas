@@ -7,7 +7,8 @@ function removeEmpty(obj) {
         Object.keys(obj).forEach(function(key) {
             if (obj[key] && typeof obj[key] === 'object') {
                 removeEmpty(obj[key]);
-            } else if (obj[key] == null) {
+            } else if (obj[key] == null
+                || (obj[key].length != undefined && obj[key].length == 0)) {
                 delete obj[key];
             }
         });
