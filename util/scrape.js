@@ -20,39 +20,37 @@ function SchemaParser(schema) {
         // Scrape function that is available to schema implementation.
         var scrape = function(selector) {
             var elem = select(selector);
-            if (elem != null) {
-                var as = function(subschema) {
-                    var value = extract(elem, subschema);
-                    return value;
-                }
+            var as = function(subschema) {
+                var value = elem != null ? extract(elem, subschema) : null;
+                return value;
+            }
 
-                as.text = function() {
-                    var value = extract(elem);
-                    return value;
-                }
-                as.number = function() {
+            as.text = function() {
+                var value = elem != null ? extract(elem) : null;
+                return value;
+            }
+            as.number = function() {
+                if (elem != null) {
                     var value = extract(elem);
                     var parsed = parseInt(value, 10);
                     return isNaN(parsed) ? null : parsed;
+                } else {
+                    return null;
                 }
-                as.date = function(format) {
-                    var value = extract(elem);
-                    if (value) {
-                        // Convert all non-digit separators to /
-                        value = value.replace(/[^\d]/g, '/');
-                        var parsed = date.parse(value, format || 'DD/MM/YYYY');
-                        return isNaN(parsed) ? null : parsed;
-                    } else {
-                        return null;
-                    }
-                }
-
-                return { as: as };
-
-            } else {
-                console.error(selector, "not found");
-                return null;
             }
+            as.date = function(format) {
+                var value = elem != null ? extract(elem) : null;
+                if (value) {
+                    // Convert all non-digit separators to /
+                    value = value.replace(/[^\d]/g, '/');
+                    var parsed = date.parse(value, format || 'DD/MM/YYYY');
+                    return isNaN(parsed) ? null : parsed;
+                } else {
+                    return null;
+                }
+            }
+
+            return { as: as };
         }
 
         return schema(scrape);
