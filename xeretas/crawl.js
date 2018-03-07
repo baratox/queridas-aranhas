@@ -21,11 +21,8 @@ function dumpResponse(request, response) {
 
 function makeRequest(options) {
     var req = options.request;
-    if (typeof req === 'string' || req instanceof String) {
-        req = {
-            url: req
-        }
-    }
+
+    req['resolveWithFullResponse'] = true;
 
     transform = req['transform'];
     req['transform'] = function(body, response, resolveWithFullResponse) {
@@ -47,6 +44,7 @@ function makeRequest(options) {
         }
     };
 
+    console.info("GET", req.url);
     return request(req).catch((error) => {
             // TODO If it's a temporary problem, retry.
             console.error(error);
@@ -94,33 +92,60 @@ function crawler(options) {
         throw Error("Option 'findOrCreate' is required.");
     }
 
-    return function() {
-        return makeRequest(options)
-            .then((records) => {
-                if (!records || !Array.isArray(records)) {
-                    console.warn("Incomprehensible Response:\n", records);
-                    return Promise.resolve(Error("Incomprehensible Response"));
-                }
+    function processResponse(response) {
+        var records = response.scraped;
+        if (!records || !Array.isArray(records)) {
+            console.warn("Incomprehensible Response:\n", records);
+            return Promise.resolve(Error("Incomprehensible Response"));
+        }
 
-                var promises = [];
-                records.forEach((record, i) => {
-                    // if (i > 0) { return };
-                    var promise = findAndUpdateOrCreate(options.findOrCreate, record);
+        var promises = [];
+        records.forEach((record, i) => {
+            if (typeof options.extendRecord == 'function') {
+                Object.assign(record, options.extendRecord(record, response));
+            }
 
-                    // Chain all options.spread in sequence.
-                    if (typeof options.spread == 'function') {
-                        promise = promise.spread(options.spread);
-                    }
+            var promise = findAndUpdateOrCreate(options.findOrCreate, record);
 
-                    promise.catch((error) => {
-                        console.error(error);
-                    });
+            // Chain all options.spread in sequence.
+            if (typeof options.spread == 'function') {
+                promise = promise.spread(options.spread);
+            }
 
-                    promises.push(promise);
-                });
-
-                return Promise.all(promises);
+            promise.catch((error) => {
+                console.error(error);
             });
+
+            promises.push(promise);
+        });
+
+        return Promise.all(promises);
+    }
+
+    return function() {
+        var request = options.request;
+        if (typeof request !== 'object') {
+            request = {
+                url: request
+            }
+        }
+
+        if (typeof request.url === 'string' || request.url instanceof String) {
+            return makeRequest(options).then(processResponse);
+
+        } else if (Array.isArray(request.url)) {
+            var promises = [];
+            request.url.forEach((url) => {
+                request = Object.assign({}, options.request, { 'url': url });
+                promises.push(
+                    makeRequest(Object.assign({}, options, { 'request': request }))
+                    .then(processResponse));
+            })
+            return Promise.all(promises);
+
+        } else {
+            throw Error("Invalid request URL:", request.url);
+        }
     }
 }
 
