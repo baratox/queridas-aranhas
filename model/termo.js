@@ -8,7 +8,7 @@ module.exports = function(sequelize, DataTypes) {
             primaryKey: true
         },
         tipo: DataTypes.STRING,
-        idCamara: DataTypes.INTEGER,
+        idCamara: DataTypes.STRING,
         sigla: DataTypes.STRING,
         nome: DataTypes.STRING,
         descricao: DataTypes.STRING

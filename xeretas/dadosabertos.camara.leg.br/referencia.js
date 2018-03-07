@@ -29,7 +29,7 @@ module.exports = {
         select: 'dados',
 
         schema: (scrape) => ({
-            idCamara: scrape('id').as.number(),
+            idCamara: scrape('id').as.text(),
             sigla: scrape('sigla').as.text(),
             nome: scrape('nome').as.text(),
             descricao: scrape('descricao').as.text()
@@ -37,9 +37,13 @@ module.exports = {
 
         extendRecord: (termo, response) => {
             var path = response.request.uri.path;
-            return {
-                tipo: path.substring(path.lastIndexOf('/') + 1)
+            termo['tipo'] = path.substring(path.lastIndexOf('/') + 1);
+
+            if (termo['idCamara'] == undefined || termo['idCamara'] == null) {
+                termo['idCamara'] = termo['sigla'];
             }
+
+            return termo;
         },
 
         findOrCreate: function(termo) {
