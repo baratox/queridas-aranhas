@@ -69,7 +69,6 @@ module.exports.writeText = function(response, filename) {
     fs.ensureDir(path.dirname(filename)).then(function() {
         fs.writeFile(filename, response, function(err) {
             if (err) throw err;
-            console.log('The file has been saved!');
         });
     });
 }
