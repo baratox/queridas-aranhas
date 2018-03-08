@@ -20,7 +20,7 @@ function dumpResponse(request, response) {
 }
 
 function makeRequest(options) {
-    var req = options.request;
+    var req = Object.assign({}, options.request);
 
     req['resolveWithFullResponse'] = true;
 
@@ -119,7 +119,21 @@ function crawler(options) {
             promises.push(promise);
         });
 
-        return Promise.all(promises);
+        return Promise.all(promises).then(() => {
+            // If headers have a next page link, request it too using same crawling options.
+            if (response.headers.link) {
+                var links = response.headers.link.split(",")
+                                .filter((link) => link.match(/rel="next"/));
+                if (links.length > 0) {
+                    var next = new RegExp(/<(.*)>/).exec(links[0])[1];
+                    var nextRequest = Object.assign({}, options.request, { 'url': next });
+                    return makeRequest(Object.assign({}, options, { 'request': nextRequest }))
+                            .then(processResponse);
+                }
+            }
+
+            return Promise.resolve();
+        });
     }
 
     return function() {
