@@ -5,7 +5,8 @@ const S = require('string');
 function removeEmpty(obj) {
     if (obj) {
         Object.keys(obj).forEach(function(key) {
-            if (obj[key] && typeof obj[key] === 'object') {
+            if (obj[key] && typeof obj[key] === 'object'
+                && obj[key]['sequelize'] === undefined) {
                 removeEmpty(obj[key]);
             } else if (obj[key] == null
                 || (obj[key].length != undefined && obj[key].length == 0)) {
@@ -49,6 +50,18 @@ function SchemaParser(schema) {
                 } else {
                     return null;
                 }
+            }
+            as.mapped = function(map) {
+                if (elem != null) {
+                    var key = extract(elem);
+                    if (map[key]) {
+                        return map[key];
+                    } else {
+                        console.warn("Invalid key '" + key + "' for", selector);
+                    }
+                }
+
+                return null;
             }
 
             return { as: as };
