@@ -92,6 +92,28 @@ function crawler(options) {
         throw Error("Option 'findOrCreate' is required.");
     }
 
+    function acceptAndMoveOn(error) {
+        console.error("Error:", error, "\n  record:" + JSON.toString(record));
+        return Promise.resolve();
+    }
+
+    function processRecord(record, response) {
+        if (typeof options.extendRecord == 'function') {
+            Object.assign(record, options.extendRecord(record, response));
+        }
+
+        var promise = findAndUpdateOrCreate(options.findOrCreate, record);
+
+        // Chain all options.spread in sequence.
+        if (typeof options.spread == 'function') {
+            promise = promise.spread(options.spread);
+        }
+
+        promise = promise.catch();
+
+        return promise;
+    }
+
     function processResponse(response) {
         var records = response.scraped;
         if (!records || !Array.isArray(records)) {
@@ -101,20 +123,6 @@ function crawler(options) {
 
         var promises = [];
         records.forEach((record, i) => {
-            if (typeof options.extendRecord == 'function') {
-                Object.assign(record, options.extendRecord(record, response));
-            }
-
-            var promise = findAndUpdateOrCreate(options.findOrCreate, record);
-
-            // Chain all options.spread in sequence.
-            if (typeof options.spread == 'function') {
-                promise = promise.spread(options.spread);
-            }
-
-            promise.catch((error) => {
-                console.error(error);
-            });
 
             promises.push(promise);
         });
