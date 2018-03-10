@@ -11,7 +11,16 @@ module.exports = function(sequelize, DataTypes) {
         idCamara: DataTypes.INTEGER,
         sigla: DataTypes.STRING,
         nome: DataTypes.TEXT,
-        apelido: DataTypes.STRING
+        apelido: DataTypes.STRING,
+
+        dataInstalacao: DataTypes.DATE,
+        dataInicio: DataTypes.DATE,
+        dataFim: DataTypes.DATE,
+        dataFimOriginal: DataTypes.DATE,
+
+        casa: DataTypes.STRING,
+        sala: DataTypes.STRING,
+        website: DataTypes.STRING
     });
 
     Orgao.associate = function(model) {
