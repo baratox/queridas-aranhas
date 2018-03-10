@@ -58,6 +58,7 @@ function SchemaParser(schema) {
                         return map[key];
                     } else {
                         console.warn("Invalid key '" + key + "' for", selector);
+                        console.debug(JSON.stringify(map));
                     }
                 }
 
@@ -136,8 +137,7 @@ function JsonScraper() {
                 if (selected.hasOwnProperty(s)) {
                     selected = selected[s];
                 } else {
-                    console.error("Unmatched selector:", s);
-                    return null;
+                    throw Error("Unmatched selector:" + s + "\nIn:" + JSON.stringify(selected, 2))
                 }
             });
 
@@ -154,13 +154,14 @@ function JsonScraper() {
                     return sub(elem, select, extract);
                 }
             } else {
-                evaluate = (selector) => jsonSelect(el, selector);
+                evaluate = (elem) => jsonSelect(el, selector);
             }
 
-            if (!Array.isArray(el)) {
-                return el;
+            if (typeof el == 'object' && el.constructor !== Number
+                    && el.constructor !== Array) {
+                return schema ? evaluate(el) : el;
 
-            } else if (el.length > 1) {
+            } else if (el.constructor === Array) {
                 var data = [];
                 el.forEach((element) => {
                     var record = evaluate(element);
@@ -172,7 +173,7 @@ function JsonScraper() {
                 return data;
 
             } else {
-                return null;
+                return el;
             }
         }
 

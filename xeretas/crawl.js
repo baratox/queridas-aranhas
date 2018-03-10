@@ -23,16 +23,14 @@ function makeRequest(options) {
     var req = Object.assign({}, options.request);
 
     req['resolveWithFullResponse'] = true;
-
-    transform = req['transform'];
+    req['transform2xxOnly'] = true;
     req['transform'] = function(body, response, resolveWithFullResponse) {
         // Save the raw response
         dumpResponse(req, response);
 
         // Scrape the body and return
-        if (transform || options.scrape) {
-            var scraped = transform ? transform(body, response, false)
-                            : options.scrape(body);
+        if (options.scrape) {
+            var scraped = options.scrape(body);
             if (resolveWithFullResponse) {
                 response.scraped = scraped;
                 return response;
@@ -59,19 +57,25 @@ function findAndUpdateOrCreate(findOrCreate, record) {
         return Promise.reject();
     }
 
-    return promise.spread((object, created) => {
+    return promise.then(([object, created, updatedRecord]) => {
+            if (updatedRecord) {
+                record = updatedRecord;
+            }
+
             if (created) {
                 console.debug("Created", object.constructor.name, object.id);
                 return [object, record];
             } else {
                 return object.update(record).then(
-                    (object) => {
-                        console.debug("Updated", object.constructor.name, object.id,
+                    (updated) => {
+                        console.debug("Updated", updated.constructor.name, updated.id,
                             "with the latest data.");
-                        return [object, record];
+                        return [updated, record];
                     }
                 );
             }
+        }).catch(err => {
+            console.error("Failed to Create or Update.", err);
         });
 }
 
@@ -81,6 +85,7 @@ function crawler(options) {
         schema: null,
         select: '*',
 
+        promiseTo: createOrUpdate,
         findOrCreate: null,
 
         spread: null
@@ -88,16 +93,16 @@ function crawler(options) {
 
     options = Object.assign({}, defaultOptions, options);
 
-    if (!options.findOrCreate) {
-        throw Error("Option 'findOrCreate' is required.");
-    }
-
-    function acceptAndMoveOn(error) {
+    function acceptAndMoveOn(error, record) {
         console.error("Error:", error, "\n  record:" + JSON.toString(record));
         return Promise.resolve();
     }
 
-    function processRecord(record, response) {
+    function createOrUpdate(record, response) {
+        if (!options.findOrCreate) {
+            throw Error("Option 'findOrCreate' is required.");
+        }
+
         if (typeof options.extendRecord == 'function') {
             Object.assign(record, options.extendRecord(record, response));
         }
@@ -109,39 +114,56 @@ function crawler(options) {
             promise = promise.spread(options.spread);
         }
 
-        promise = promise.catch();
-
         return promise;
     }
 
     function processResponse(response) {
-        var records = response.scraped;
-        if (!records || !Array.isArray(records)) {
-            console.warn("Incomprehensible Response:\n", records);
-            return Promise.resolve(Error("Incomprehensible Response"));
+        if (!(/^2/.test('' + response.statusCode))) {
+            console.error("Request failed with status", response.statusCode);
+            return Promise.resolve(response);
         }
 
-        var promises = [];
-        records.forEach((record, i) => {
+        var scraped = response.scraped;
+        if (!scraped) {
+            console.error("Incomprehensible Response for ", response.request.url);
+            return Promise.resolve(response);
+        }
 
-            promises.push(promise);
-        });
+        if (scraped.constructor === Array) {
+            var promises = [];
+            scraped.forEach((record, i) => {
+                promises.push(options.promiseTo(record, response)
+                    .catch((error) => {
+                        console.error("Error:", error, "\n  record:", JSON.toString(record));
+                        return Promise.resolve();
+                    })
+                );
+            });
 
-        return Promise.all(promises).then(() => {
+            var promise = Promise.all(promises);
+
             // If headers have a next page link, request it too using same crawling options.
             if (response.headers.link) {
-                var links = response.headers.link.split(",")
-                                .filter((link) => link.match(/rel="next"/));
-                if (links.length > 0) {
-                    var next = new RegExp(/<(.*)>/).exec(links[0])[1];
-                    var nextRequest = Object.assign({}, options.request, { 'url': next });
-                    return makeRequest(Object.assign({}, options, { 'request': nextRequest }))
-                            .then(processResponse);
-                }
+                return promise.then(() => {
+                    var links = response.headers.link.split(",")
+                                    .filter((link) => link.match(/rel="next"/));
+                    if (links.length > 0) {
+                        var next = new RegExp(/<(.*)>/).exec(links[0])[1];
+                        var nextRequest = Object.assign({}, options.request, { 'url': next });
+                        return makeRequest(Object.assign({}, options, { 'request': nextRequest }))
+                                .then(processResponse);
+                    }
+                });
             }
 
-            return Promise.resolve();
-        });
+        } else if (typeof scraped == 'object') {
+            return options.promiseTo(scraped, response)
+                .catch((error) => {
+                    console.error("Error:", error);
+                    return Promise.resolve();
+                });
+        }
+
     }
 
     return function() {
