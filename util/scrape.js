@@ -32,24 +32,38 @@ function SchemaParser(schema) {
                 return value;
             }
             as.number = function() {
-                if (elem != null) {
-                    var value = extract(elem);
-                    var parsed = parseInt(value, 10);
-                    return isNaN(parsed) ? null : parsed;
-                } else {
-                    return null;
+                var value = elem != null ? extract(elem) : null;
+                if (value) {
+                    if (value.constructor === Array) {
+                        value = value.map((v) => {
+                            var parsed = parseInt(v, 10);
+                            return isNaN(parsed) ? null : parsed;
+                        });
+                    } else {
+                        var parsed = parseInt(value, 10);
+                        value = isNaN(parsed) ? null : parsed;
+                    }
                 }
+                return value;
             }
             as.date = function(format) {
                 var value = elem != null ? extract(elem) : null;
                 if (value) {
-                    // Convert all non-digit separators to /
-                    value = value.replace(/[^\d]/g, '/');
-                    var parsed = date.parse(value, format || 'DD/MM/YYYY');
-                    return isNaN(parsed) ? null : parsed;
-                } else {
-                    return null;
+                    if (value.constructor === Array) {
+                        value = value.map((v) => {
+                            // Convert all non-digit separators to /
+                            v = v.replace(/[^\d]/g, '/');
+                            var parsed = date.parse(v, format || 'DD/MM/YYYY');
+                            return isNaN(parsed) ? null : parsed;
+                        });
+                    } else {
+                        // Convert all non-digit separators to /
+                        value = value.replace(/[^\d]/g, '/');
+                        var parsed = date.parse(value, format || 'DD/MM/YYYY');
+                        value = isNaN(parsed) ? null : parsed;
+                    }
                 }
+                return value;
             }
             as.mapped = function(map) {
                 if (elem != null) {
@@ -128,18 +142,32 @@ function JsonScraper() {
 
         // Select inside each element
         function jsonSelect(json, selector) {
-            if (!Array.isArray(selector)) {
-                selector = ("" + selector).split('[ \.]');
+            if (selector.constructor !== Array) {
+                selector = ("" + selector).split(/[ \.]+/);
             }
 
             var selected = json;
-            selector.forEach((s) => {
-                if (selected.hasOwnProperty(s)) {
-                    selected = selected[s];
+            for (var i = 0; i < selector.length; i++) {
+                var s = selector[i];
+                if (selected.constructor !== Array) {
+                    if (selected.hasOwnProperty(s)) {
+                        selected = selected[s];
+                    } else {
+                        throw Error("Unmatched selector: '" + s + "' in:" +
+                            JSON.stringify(selected))
+                    }
+
                 } else {
-                    throw Error("Unmatched selector:" + s + "\nIn:" + JSON.stringify(selected, 2))
+                    for (var j = 0; j < selected.length; j++) {
+                        if (selected[j].hasOwnProperty(s)) {
+                            selected[j] = selected[j][s];
+                        } else {
+                            throw Error("Unmatched selector: '" + s + "' in: " +
+                                JSON.stringify(selected[j]))
+                        }
+                    }
                 }
-            });
+            }
 
             return selected;
         }
@@ -154,7 +182,7 @@ function JsonScraper() {
                     return sub(elem, select, extract);
                 }
             } else {
-                evaluate = (elem) => jsonSelect(el, selector);
+                evaluate = (elem) => elem;
             }
 
             if (typeof el == 'object' && el.constructor !== Number
