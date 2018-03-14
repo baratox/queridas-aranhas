@@ -203,8 +203,8 @@ function crawlXml(options) {
             throw Error("Option 'select' is required.");
         }
 
-        options.scrape = (body) => scrape.xml(options.select)
-            .as(options.schema).scrape(body);
+        options.scrape = (body) => scrape.xml.expecting(options.schema)
+            .scrape(body, options.select);
     }
 
     return crawler(options);
@@ -220,8 +220,8 @@ function crawlJson(options) {
             throw Error("Option 'select' is required.");
         }
 
-        options.scrape = (body) => scrape.json(options.select)
-            .as(options.schema).scrape(body);
+        options.scrape = (body) => scrape.json.expecting(options.schema)
+            .scrape(body, options.select);
     }
 
     return crawler(options);

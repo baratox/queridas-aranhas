@@ -1,6 +1,8 @@
-const cheerio = require('cheerio');
 const date = require('date-and-time');
 const S = require('string');
+
+const scrapeXml = require('./scrape.xml.js');
+const scrapeJson = require('./scrape.json.js');
 
 function removeEmpty(obj) {
     if (obj) {
@@ -86,138 +88,22 @@ function SchemaParser(schema) {
     }
 }
 
-function XmlScraper() {
-    var scrapeXml = (content, selector, schema) => {
-        var $ = cheerio.load(content, { xmlMode: true });
-
-        var extract = (el, schema) => {
-            var evaluate;
-            if (schema) {
-                var sub = SchemaParser(schema);
-                evaluate = (elem) => {
-                    // Select inside each element
-                    var sub$ = (selector) => $(selector, elem);
-                    return sub(elem, sub$, extract);
-                }
-            } else {
-                evaluate = (elem) =>
-                    S($(elem).text()).collapseWhitespace().s;
-            }
-
-            if (el.length == 1) {
-                return evaluate(el);
-
-            } else if (el.length > 1) {
-                var data = [];
-                el.each((i, element) => {
-                    var record = evaluate(element);
-                    if (record != null) {
-                        data.push(record);
-                    }
-                });
-
-                return data;
-
-            } else {
-                return null;
-            }
+module.exports.xml = {
+    expecting: (schema) => ({
+        scrape: (content, selector) => {
+            var scraped = scrapeXml(SchemaParser, content, selector, schema);
+            removeEmpty(scraped);
+            return scraped;
         }
-
-        var data = extract($(selector), schema);
-        removeEmpty(data);
-        return data;
-    }
-
-    return (selector) => ({
-        as: (schema) => ({
-            scrape: (content) =>
-                scrapeXml(content, selector, schema)
-        })
-    });
+    })
 }
 
-function JsonScraper() {
-    var scrapeJson = (content, selector, schema) => {
-        var json = JSON.parse(content);
-
-        // Select inside each element
-        function jsonSelect(json, selector) {
-            if (selector.constructor !== Array) {
-                selector = ("" + selector).split(/[ \.]+/);
-            }
-
-            var selected = json;
-            for (var i = 0; i < selector.length; i++) {
-                var s = selector[i];
-                if (selected.constructor !== Array) {
-                    if (selected.hasOwnProperty(s)) {
-                        selected = selected[s];
-                    } else {
-                        throw Error("Unmatched selector: '" + s + "' in:" +
-                            JSON.stringify(selected))
-                    }
-
-                } else {
-                    for (var j = 0; j < selected.length; j++) {
-                        if (selected[j].hasOwnProperty(s)) {
-                            selected[j] = selected[j][s];
-                        } else {
-                            throw Error("Unmatched selector: '" + s + "' in: " +
-                                JSON.stringify(selected[j]))
-                        }
-                    }
-                }
-            }
-
-            return selected;
+module.exports.json = {
+    expecting: (schema) => ({
+        scrape: (content, selector) => {
+            var scraped = scrapeJson(SchemaParser, content, selector, schema);
+            removeEmpty(scraped);
+            return scraped;
         }
-
-        var extract = (el, schema) => {
-            var evaluate;
-
-            if (schema) {
-                var sub = SchemaParser(schema);
-                evaluate = (elem) => {
-                    var select = (selector) => jsonSelect(elem, selector);
-                    return sub(elem, select, extract);
-                }
-            } else {
-                evaluate = (elem) => elem;
-            }
-
-            if (typeof el == 'object' && el.constructor !== Number
-                    && el.constructor !== Array) {
-                return schema ? evaluate(el) : el;
-
-            } else if (el.constructor === Array) {
-                var data = [];
-                el.forEach((element) => {
-                    var record = evaluate(element);
-                    if (record != null) {
-                        data.push(record);
-                    }
-                });
-
-                return data;
-
-            } else {
-                return el;
-            }
-        }
-
-        var data = extract(jsonSelect(json, selector), schema);
-        removeEmpty(data);
-        return data;
-    }
-
-    return (selector) => ({
-        as: (schema) => ({
-            scrape: (content) =>
-                scrapeJson(content, selector, schema)
-        })
-    });
+    })
 }
-
-
-module.exports.xml = XmlScraper();
-module.exports.json = JsonScraper();
