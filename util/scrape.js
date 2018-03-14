@@ -101,9 +101,10 @@ module.exports.xml = {
 module.exports.json = {
     expecting: (schema) => ({
         scrape: (content, selector) => {
-            var scraped = scrapeJson(SchemaParser, content, selector, schema);
+            var scraped = scrapeJson.scrape(SchemaParser, content, selector, schema);
             removeEmpty(scraped);
             return scraped;
         }
-    })
+    }),
+    describe: (content) => scrapeJson.describe(content)
 }
