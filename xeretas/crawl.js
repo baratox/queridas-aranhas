@@ -1,7 +1,7 @@
 const request = require('request-promise-native');
 const S = require('string');
 
-const scrape = require('../util/scrape');
+const scraper = require('../util/scrape');
 
 const { writeText } = require('../util/json');
 const path = require('path');
@@ -195,16 +195,11 @@ function crawler(options) {
 
 function crawlXml(options) {
     if (!options.scrape) {
-        // Scrape uses a schema to parse
-        if (!options.schema) {
-            throw Error("Option 'schema' is required.");
+        options.scrape = (body) => {
+            return scraper.select(options.select)
+                          .as(options.schema)
+                          .scrape.xml(body);
         }
-        if (!options.select) {
-            throw Error("Option 'select' is required.");
-        }
-
-        options.scrape = (body) => scrape.xml.expecting(options.schema)
-            .scrape(body, options.select);
     }
 
     return crawler(options);
@@ -212,16 +207,11 @@ function crawlXml(options) {
 
 function crawlJson(options) {
     if (!options.scrape) {
-        // Scrape uses a schema to parse
-        if (!options.schema) {
-            throw Error("Option 'schema' is required.");
+        options.scrape = (body) => {
+            return scraper.select(options.select)
+                          .as(options.schema)
+                          .scrape.json(body);
         }
-        if (!options.select) {
-            throw Error("Option 'select' is required.");
-        }
-
-        options.scrape = (body) => scrape.json.expecting(options.schema)
-            .scrape(body, options.select);
     }
 
     return crawler(options);

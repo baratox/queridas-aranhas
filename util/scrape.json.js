@@ -218,8 +218,12 @@ function saw(spec, type, value) {
     }
 }
 
-function describe(element, known) {
+function describe(element, known, selector) {
     known = known || {};
+
+    if (selector) {
+        element = jsonSelect(element, selector);
+    }
 
     var type = speculateType(element);
     saw(known, type, element);
@@ -249,4 +253,7 @@ function describe(element, known) {
 }
 
 module.exports.scrape = scrapeJson;
-module.exports.describe = describe;
+module.exports.describe = (content, selector = null) => {
+    var json = JSON.parse(content);
+    return describe(json, {}, selector);
+}

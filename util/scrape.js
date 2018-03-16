@@ -88,23 +88,62 @@ function SchemaParser(schema) {
     }
 }
 
-module.exports.xml = {
-    expecting: (schema) => ({
-        scrape: (content, selector) => {
-            var scraped = scrapeXml(SchemaParser, content, selector, schema);
-            removeEmpty(scraped);
-            return scraped;
+function Scraper(selector, schema) {
+    this.select = (selector) => {
+        return new Scraper(selector, schema);
+    };
+
+    this.as = (schema) => {
+        return new Scraper(selector, schema);
+    }
+
+    function getContentType(response) {
+        // Consider using the `content-type` library for a robust comparison.
+        var contentType = response.headers['content-type'];
+        if (contentType.indexOf('application/json') >= 0) {
+            return 'json'
+        } else if (contentType.indexOf('text/xml') >= 0) {
+            return 'xml'
+        } else {
+            return null;
         }
-    })
+    }
+
+    this.scrape = (response) => {
+        var type = getContentType(response);
+        if (type && typeof this.scrape[type] === 'function') {
+            return this.scrape[type](response.body);
+        } else {
+            throw new TypeError("Response is of unexpected type: " +
+                response.headers['content-type']);
+        }
+    }
+    this.scrape.xml = (content) => {
+        var scraped = scrapeXml(SchemaParser, content, selector, schema);
+        removeEmpty(scraped);
+        return scraped;
+    }
+    this.scrape.json = (content) => {
+        var scraped = scrapeJson.scrape(SchemaParser, content, selector, schema);
+        removeEmpty(scraped);
+        return scraped;
+    }
+
+    this.describe = (response) => {
+        var type = getContentType(response);
+        if (type && typeof this.describe[type] === 'function') {
+            return this.describe[type](response.body);
+        } else {
+            throw new TypeError("Response is of unexpected type: " +
+                response.headers['content-type']);
+        }
+    }
+    this.describe.xml = (content) => {
+        return scrapeXml.describe(content, selector);
+    }
+    this.describe.json = (content) => {
+        return scrapeJson.describe(content, selector);
+    }
 }
 
-module.exports.json = {
-    expecting: (schema) => ({
-        scrape: (content, selector) => {
-            var scraped = scrapeJson.scrape(SchemaParser, content, selector, schema);
-            removeEmpty(scraped);
-            return scraped;
-        }
-    }),
-    describe: (content) => scrapeJson.describe(content)
-}
+module.exports = new Scraper();
