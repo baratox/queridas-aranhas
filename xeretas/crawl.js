@@ -8,6 +8,30 @@ const path = require('path');
 
 
 const knownTricks = {};
+
+/**
+ * Updates the context with the enumerable properties of `fields`. If `fields` is a
+ * function, it is executed with the previous step result as argument, and is
+ * expected to return an object with the fields to set.
+ *
+ * If a field is a Promise, the resolved value is used for the field.
+ *
+ * Returns a Promise that resolves after all fields are resolved.
+ */
+knownTricks['set'] = function(fields, result) {
+    var promises = [];
+    fields = typeof fields === 'function' ? fields(result) : fields;
+    Object.keys(fields).forEach(field => {
+        promises.push(Promise.resolve(fields[field]).then((val) => {
+            // Saves the evaluated field to current context.
+            this[field] = val;
+        }));
+    })
+
+    // Returns the original result, after all evaluating promises resolve.
+    return Promise.all(promises).then(() => result);
+}
+
 knownTricks['request'];
 knownTricks['scrape'];
 knownTricks['createOrUpdate'];
