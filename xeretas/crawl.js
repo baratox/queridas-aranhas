@@ -7,6 +7,13 @@ const { writeText } = require('../util/json');
 const path = require('path');
 
 
+const knownTricks = {};
+knownTricks['request'];
+knownTricks['scrape'];
+knownTricks['createOrUpdate'];
+
+
+
 function dumpResponse(request, response) {
     // Save the raw response to the disk
     var filename = S(request.url).chompLeft('https://')
@@ -192,6 +199,73 @@ function crawler(options) {
         }
     }
 }
+
+
+
+function takeStep(step, previousResults) {
+    if (typeof step === 'function') {
+        console.log("Applying function ", step.name, "(", ...previousResults, ") to\n    context:",
+            Object.assign({}, this, { steps: '...' }), "\n");
+        return step.apply(this, previousResults);
+
+    } else if (typeof step === 'object') {
+        var keys = Object.keys(step);
+        if (keys.length != 1) {
+            throw TypeError("Invalid trick step object.");
+        }
+
+        var trick = knownTricks[keys[0]];
+        if (!trick) {
+            throw TypeError("Unknown trick '{}'.".format(keys[0]));
+        }
+
+        console.log("Applying trick '", keys[0], "' (", ...previousResults, ") to\n    context:",
+            Object.assign({}, this, { steps: '...' }), "\n");
+
+        return trick.apply(this, [ step[keys[0]] ].concat(...previousResults));
+
+    } else {
+        throw TypeError("Steps must be either a 'function' or an 'object'.");
+    }
+}
+
+function walkOneStep(promise, context, stepsTaken=0) {
+    return promise.then((...result) => {
+        context = Object.assign({}, context);
+
+        // console.log("Walking step", stepsTaken, "\nContext:",
+        //         Object.assign({}, context, { steps: '...' }), "\n");
+
+        var next = takeStep.call(context, context.steps[stepsTaken], result);
+        stepsTaken++;
+        if (next && next.constructor === Array) {
+            if (stepsTaken < context.steps.length) {
+                next = next.map((n) => walkOneStep(Promise.resolve(n), context, stepsTaken));
+            }
+
+            return Promise.all(next);
+
+        } else {
+            if (stepsTaken < context.steps.length) {
+                next = walkOneStep(Promise.resolve(next), context, stepsTaken);
+            }
+
+            return Promise.resolve(next);
+        }
+    });
+}
+
+function crawlStepByStep(steps) {
+    // Ensure steps is an Array
+    steps = steps.constructor == Array ? steps : [steps];
+
+    var context = { 'steps': steps };
+    var promise = Promise.resolve();
+    return walkOneStep(promise, context);
+}
+
+
+
 
 function crawlXml(options) {
     if (!options.scrape) {
