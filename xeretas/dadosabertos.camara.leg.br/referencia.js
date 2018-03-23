@@ -8,8 +8,8 @@ module.exports = {
               "classificação de tipos de proposições, situações de andamento de eventos, " +
               "etc.",
 
-    command: crawl.json({
-        request: {
+    command: crawl.stepByStep([
+        { 'request': {
             url: [
                 'https://dadosabertos.camara.leg.br/api/v2/referencias/situacoesDeputado',
                 'https://dadosabertos.camara.leg.br/api/v2/referencias/situacoesEvento',
@@ -24,36 +24,39 @@ module.exports = {
                 'Accept': 'application/json',
                 'Accept-Charset': 'utf-8'
             }
-        },
+        }},
 
-        select: 'dados',
+        { 'scrape': {
+            select: 'dados',
+            schema: (scrape) => ({
+                idCamara: scrape('id').as.text(),
+                sigla: scrape('sigla').as.text(),
+                nome: scrape('nome').as.text(),
+                descricao: scrape('descricao').as.text()
+            })
+        }},
 
-        schema: (scrape) => ({
-            idCamara: scrape('id').as.text(),
-            sigla: scrape('sigla').as.text(),
-            nome: scrape('nome').as.text(),
-            descricao: scrape('descricao').as.text()
-        }),
+        { 'createOrUpdate': {
+            extendRecord: (termo, response) => {
+                var path = response.request.uri.path;
+                termo['tipo'] = path.substring(path.lastIndexOf('/') + 1);
 
-        extendRecord: (termo, response) => {
-            var path = response.request.uri.path;
-            termo['tipo'] = path.substring(path.lastIndexOf('/') + 1);
+                if (termo['idCamara'] == undefined || termo['idCamara'] == null) {
+                    termo['idCamara'] = termo['sigla'];
+                }
 
-            if (termo['idCamara'] == undefined || termo['idCamara'] == null) {
-                termo['idCamara'] = termo['sigla'];
+                return termo;
+            },
+
+            findOrCreate: function(termo) {
+                return Termo.findOrCreate({
+                    where: {
+                        'tipo': termo.tipo,
+                        'idCamara': termo.idCamara
+                    },
+                    defaults: termo
+                });
             }
-
-            return termo;
-        },
-
-        findOrCreate: function(termo) {
-            return Termo.findOrCreate({
-                where: {
-                    'tipo': termo.tipo,
-                    'idCamara': termo.idCamara
-                },
-                defaults: termo
-            });
-        }
-    })
+        }}
+    ])
 }
