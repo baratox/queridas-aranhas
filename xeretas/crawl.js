@@ -70,6 +70,8 @@ function makeRequest(options) {
         });
 }
 
+// TODO Support 'next' page
+// TODO Translate qs array as multiple requests
 knownTricks['request'] = function(options, resolution) {
     var request = options;
     if (typeof request !== 'object') {
@@ -103,6 +105,11 @@ knownTricks['scrape'] = function(options, response) {
                          .scrape(response);
     response.scraped = scraped;
     return response;
+}
+
+knownTricks['createOrUpdate'] = function(options, response) {
+    var _crawler = crawler(options);
+    return _crawler.processResponse(response);
 }
 
 function findAndUpdateOrCreate(findOrCreate, record) {
@@ -210,6 +217,9 @@ function crawler(options) {
                                 .then(processResponse);
                     }
                 });
+
+            } else {
+                return promise;
             }
 
         } else if (typeof scraped == 'object') {
@@ -222,7 +232,7 @@ function crawler(options) {
 
     }
 
-    return function() {
+    var crawl = function() {
         var request = options.request;
         if (typeof request !== 'object') {
             request = {
@@ -247,6 +257,12 @@ function crawler(options) {
             throw Error("Invalid request URL:", request.url);
         }
     }
+
+    // Expose internal functions for current options
+    crawl.createOrUpdate = createOrUpdate;
+    crawl.processResponse = processResponse;
+
+    return crawl;
 }
 
 
@@ -294,8 +310,8 @@ function walkOneStep(promise, context, stepsTaken=0) {
     return promise.then((result) => {
         context = Object.assign({}, context);
 
-        console.log("Walking step", stepsTaken, "\nContext:",
-                Object.assign({}, context, { steps: '...' }), "\n");
+        // console.log("Walking step", stepsTaken, "\nContext:",
+        //         Object.assign({}, context, { steps: '...' }), "\n");
 
         var next = takeStep.call(context, context.steps[stepsTaken], result);
         stepsTaken++;
