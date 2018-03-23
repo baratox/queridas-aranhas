@@ -296,7 +296,7 @@ function takeStep(step, resolution) {
 
         var definition = step[keys[0]];
         if (typeof definition === 'function') {
-            definition = definition(resolution);
+            definition = definition.call(this, resolution);
         }
 
         return trick.apply(this, [ definition, resolution ]);
