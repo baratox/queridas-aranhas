@@ -73,21 +73,43 @@ function makeRequest(options) {
 // TODO Support 'next' page
 // TODO Translate qs array as multiple requests
 knownTricks['request'] = function(options, resolution) {
-    var request = options;
+    let request = options;
     if (typeof request !== 'object') {
         request = {
             url: request
         }
     }
 
+    let context = this;
+    function repeatRequestIfNextPage(response) {
+        // If headers has a next page link, request it too using same crawling options.
+        if (response.headers.link) {
+            var links = response.headers.link.split(",")
+                            .filter((link) => link.match(/rel="next"/));
+            if (links.length > 0) {
+                var next = new RegExp(/<(.*)>/).exec(links[0])[1];
+                // Repeat this 'request' step, only changing the url
+                var s = Object.assign({}, request, { 'url': next });
+                s = Object.assign({}, context.step, { 'request': s });
+                return [
+                    response,
+                    takeStep.call(context, s, context.stepsTaken)
+                ];
+            }
+        }
+
+        return response;
+    }
+
     if (typeof request.url === 'string' || request.url instanceof String) {
-        return makeRequest({ 'request': request });
+        return makeRequest({ 'request': request }).then(repeatRequestIfNextPage);
 
     } else if (Array.isArray(request.url)) {
         var promises = [];
         request.url.forEach((url) => {
             request = Object.assign({}, options, { 'url': url });
-            promises.push(makeRequest({ 'request': request }));
+            promises.push(
+                makeRequest({ 'request': request }).then(repeatRequestIfNextPage));
         })
         return promises;
 
@@ -98,7 +120,7 @@ knownTricks['request'] = function(options, resolution) {
 
 knownTricks['scrape'] = function(options, response) {
     if (response.request === undefined) {
-        throw new ValueError("Step 'scrape' must follow a 'request'.")
+        throw new TypeError("Step 'scrape' must follow a 'request'.")
     }
 
     var scraped = scraper.select(options.select).as(options.schema)
@@ -206,21 +228,21 @@ function crawler(options) {
             var promise = Promise.all(promises);
 
             // If headers have a next page link, request it too using same crawling options.
-            if (response.headers.link) {
-                return promise.then(() => {
-                    var links = response.headers.link.split(",")
-                                    .filter((link) => link.match(/rel="next"/));
-                    if (links.length > 0) {
-                        var next = new RegExp(/<(.*)>/).exec(links[0])[1];
-                        var nextRequest = Object.assign({}, options.request, { 'url': next });
-                        return makeRequest(Object.assign({}, options, { 'request': nextRequest }))
-                                .then(processResponse);
-                    }
-                });
+            // if (response.headers.link) {
+            //     return promise.then(() => {
+            //         var links = response.headers.link.split(",")
+            //                         .filter((link) => link.match(/rel="next"/));
+            //         if (links.length > 0) {
+            //             var next = new RegExp(/<(.*)>/).exec(links[0])[1];
+            //             var nextRequest = Object.assign({}, options.request, { 'url': next });
+            //             return makeRequest(Object.assign({}, options, { 'request': nextRequest }))
+            //                     .then(processResponse);
+            //         }
+            //     });
 
-            } else {
-                return promise;
-            }
+            // } else {
+            return promise;
+            // }
 
         } else if (typeof scraped == 'object') {
             return options.promiseTo(scraped, response)
@@ -275,10 +297,11 @@ function crawler(options) {
  *    If the value is a function, it's evaluated before executing the trick.
  */
 function takeStep(step, resolution) {
+    var result;
     if (typeof step === 'function') {
-        console.log("Applying function ", step.name, "(", typeof resolution, ") to\n    context:",
-            Object.assign({}, this, { steps: '...' }), "\n");
-        return step.call(this, resolution);
+        console.log("\nApplying function ", step.name, "(", typeof resolution,
+            ") to\n    context:", Object.keys(this));
+        result = step.call(this, resolution);
 
     } else if (typeof step === 'object') {
         var keys = Object.keys(step);
@@ -291,43 +314,57 @@ function takeStep(step, resolution) {
             throw TypeError("Unknown trick '{}'.".format(keys[0]));
         }
 
-        console.log("Applying trick '", keys[0], "' (", typeof resolution, ") to\n    context:",
-            Object.assign({}, this, { steps: '...' }), "\n");
+        console.log("\nApplying trick '", keys[0], "' (", typeof resolution,
+            ") to\n    context:", Object.keys(this));
 
         var definition = step[keys[0]];
         if (typeof definition === 'function') {
             definition = definition.call(this, resolution);
         }
 
-        return trick.apply(this, [ definition, resolution ]);
+        result = trick.apply(this, [ definition, resolution ]);
 
     } else {
-        throw TypeError("Steps must be either a 'function' or an 'object'.");
+        console.log(this);
+        throw TypeError("Steps must be either a 'function' or an 'object', not " + typeof step);
+    }
+
+    if (result && result.constructor === Array) {
+        if (this.stepsTaken + 1 < this.steps.length) {
+            result = result.map(n =>
+                walkOneStep(Promise.resolve(n), this, this.stepsTaken + 1));
+        }
+
+        return Promise.all(result);
+
+    } else {
+        if (this.stepsTaken + 1 < this.steps.length) {
+            result = walkOneStep(Promise.resolve(result), this, this.stepsTaken + 1);
+        }
+
+        return Promise.resolve(result);
     }
 }
 
 function walkOneStep(promise, context, stepsTaken=0) {
     return promise.then((result) => {
-        context = Object.assign({}, context);
+        context = Object.assign({}, context, {
+            step: context.steps[stepsTaken],
+            stepsTaken: stepsTaken
+        });
 
-        // console.log("Walking step", stepsTaken, "\nContext:",
-        //         Object.assign({}, context, { steps: '...' }), "\n");
-
-        var next = takeStep.call(context, context.steps[stepsTaken], result);
-        stepsTaken++;
-        if (next && next.constructor === Array) {
-            if (stepsTaken < context.steps.length) {
-                next = next.map((n) => walkOneStep(Promise.resolve(n), context, stepsTaken));
-            }
-
-            return Promise.all(next);
-
+        if (result && result.constructor === Array) {
+            result = result.map(x => {
+                if (x && x.constructor === Promise) {
+                    return x.then((y) => takeStep.call(context, context.step, y));
+                } else {
+                    return takeStep.call(context, context.step, x);
+                }
+            });
+            return Promise.all(result);
         } else {
-            if (stepsTaken < context.steps.length) {
-                next = walkOneStep(Promise.resolve(next), context, stepsTaken);
-            }
-
-            return Promise.resolve(next);
+            result = takeStep.call(context, context.step, result);
+            return Promise.resolve(result);
         }
     });
 }
