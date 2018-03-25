@@ -1,4 +1,5 @@
 const request = require('request-promise-native');
+const RequestErrors = require('request-promise-native/errors');
 const S = require('string');
 
 const scraper = require('../util/scrape');
@@ -66,7 +67,13 @@ function makeRequest(options) {
     console.info("GET", req.url);
     return request(req).catch((error) => {
             // TODO If it's a temporary problem, retry.
-            console.error(error);
+            if (error instanceof RequestErrors.StatusCodeError) {
+                console.error("Request failed with non 2xx status:", error.response.statusCode);
+                return error.response;
+            } else {
+                console.error("Request failed.", error);
+                return null;
+            }
         });
 }
 
@@ -82,8 +89,9 @@ knownTricks['request'] = function(options, resolution) {
 
     let context = this;
     function repeatRequestIfNextPage(response) {
+        var success = response && /^2/.test('' + response.statusCode);
         // If headers has a next page link, request it too using same crawling options.
-        if (response.headers.link) {
+        if (success && response.headers.link) {
             var links = response.headers.link.split(",")
                             .filter((link) => link.match(/rel="next"/));
             if (links.length > 0) {
