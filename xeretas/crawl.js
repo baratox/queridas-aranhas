@@ -64,7 +64,7 @@ function makeRequest(options) {
         }
     };
 
-    console.info("GET", req.url);
+    console.info("GET", req.url, req.qs ? '? ' + JSON.stringify(req.qs) : '');
     return request(req).catch((error) => {
             // TODO If it's a temporary problem, retry.
             if (error instanceof RequestErrors.StatusCodeError) {
@@ -80,53 +80,57 @@ function makeRequest(options) {
 // TODO Support 'next' page
 // TODO Translate qs array as multiple requests
 knownTricks['request'] = function(options, resolution) {
-    let request = options;
-    if (typeof request !== 'object') {
-        request = {
-            url: request
-        }
+    if (typeof options === 'string' || options instanceof String) {
+        options = { url: options };
     }
 
-    let context = this;
-    function repeatRequestIfNextPage(response) {
-        var success = response && /^2/.test('' + response.statusCode);
-        // If headers has a next page link, request it too using same crawling options.
-        if (success && response.headers.link) {
-            var links = response.headers.link.split(",")
-                            .filter((link) => link.match(/rel="next"/));
-            if (links.length > 0) {
-                var next = new RegExp(/<(.*)>/).exec(links[0])[1];
-                // Repeat this 'request' step, only changing the url
-                var s = Object.assign({}, request, { 'url': next });
-                s = Object.assign({}, context.step, { 'request': s });
+    if (options.constructor !== Array) {
+        options = [options];
+    }
 
-                var ctx = Object.assign({}, context);
+    var promises = [];
+    options.forEach(request => {
+        let context = this;
+        function repeatRequestIfNextPage(response) {
+            var success = response && /^2/.test('' + response.statusCode);
+            // If headers has a next page link, request it too using same crawling options.
+            if (success && response.headers.link) {
+                var links = response.headers.link.split(",")
+                                .filter((link) => link.match(/rel="next"/));
+                if (links.length > 0) {
+                    var next = new RegExp(/<(.*)>/).exec(links[0])[1];
+                    // Repeat this 'request' step, only changing the url
+                    var s = Object.assign({}, request, { 'url': next });
+                    s = Object.assign({}, context.step, { 'request': s });
 
-                return [
-                    response,
-                    takeStep.call(ctx, s, ctx.stepsTaken)
-                ];
+                    var ctx = Object.assign({}, context);
+
+                    return [
+                        response,
+                        takeStep.call(ctx, s, ctx.stepsTaken)
+                    ];
+                }
             }
+
+            return response;
         }
 
-        return response;
-    }
+        if (typeof request.url === 'string' || request.url instanceof String) {
+            promises.push(makeRequest({ 'request': request }).then(repeatRequestIfNextPage));
 
-    if (typeof request.url === 'string' || request.url instanceof String) {
-        return makeRequest({ 'request': request }).then(repeatRequestIfNextPage);
+        } else if (Array.isArray(request.url)) {
+            request.url.forEach((url) => {
+                request = Object.assign({}, options, { 'url': url });
+                promises.push(
+                    makeRequest({ 'request': request }).then(repeatRequestIfNextPage));
+            })
 
-    } else if (Array.isArray(request.url)) {
-        var promises = [];
-        request.url.forEach((url) => {
-            request = Object.assign({}, options, { 'url': url });
-            promises.push(
-                makeRequest({ 'request': request }).then(repeatRequestIfNextPage));
-        })
-        return promises;
+        } else {
+            throw Error("Invalid request URL:", request.url);
+        }
+    });
 
-    } else {
-        throw Error("Invalid request URL:", request.url);
-    }
+    return promises;
 }
 
 knownTricks['scrape'] = function(options, response) {
