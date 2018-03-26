@@ -99,9 +99,12 @@ knownTricks['request'] = function(options, resolution) {
                 // Repeat this 'request' step, only changing the url
                 var s = Object.assign({}, request, { 'url': next });
                 s = Object.assign({}, context.step, { 'request': s });
+
+                var ctx = Object.assign({}, context);
+
                 return [
                     response,
-                    takeStep.call(context, s, context.stepsTaken)
+                    takeStep.call(ctx, s, ctx.stepsTaken)
                 ];
             }
         }
@@ -130,6 +133,8 @@ knownTricks['scrape'] = function(options, response) {
     if (response.request === undefined) {
         throw new TypeError("Step 'scrape' must follow a 'request'.")
     }
+
+    console.debug("Scraping", response.request.uri.href);
 
     var scraped;
     if (options.schema) {
@@ -310,10 +315,13 @@ function crawler(options) {
  *    If the value is a function, it's evaluated before executing the trick.
  */
 function takeStep(step, resolution) {
+    this.history = (this.history ? this.history + '-->' : '')
+        + (Math.random()*0xFF<<0).toString(16);
+
     var result;
     if (typeof step === 'function') {
         console.log("\nApplying function ", step.name, "(", typeof resolution,
-            ") to\n    context:", Object.keys(this));
+            ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
         result = step.call(this, resolution);
 
     } else if (typeof step === 'object') {
@@ -328,7 +336,7 @@ function takeStep(step, resolution) {
         }
 
         console.log("\nApplying trick '", keys[0], "' (", typeof resolution,
-            ") to\n    context:", Object.keys(this));
+            ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
 
         var definition = step[keys[0]];
         if (typeof definition === 'function') {
@@ -361,21 +369,25 @@ function takeStep(step, resolution) {
 
 function walkOneStep(promise, context, stepsTaken=0) {
     return promise.then((result) => {
-        context = Object.assign({}, context, {
-            step: context.steps[stepsTaken],
-            stepsTaken: stepsTaken
-        });
 
         if (result && result.constructor === Array) {
             result = result.map(x => {
-                if (x && x.constructor === Promise) {
-                    return x.then((y) => takeStep.call(context, context.step, y));
+                if (x && x.constructor !== Promise) {
+                    return walkOneStep(Promise.resolve(x), context, stepsTaken);
                 } else {
-                    return takeStep.call(context, context.step, x);
+                    return x;
                 }
             });
+
             return Promise.all(result);
+
         } else {
+            context = Object.assign({}, context);
+            if (context.stepsTaken != stepsTaken) {
+                context.step = context.steps[stepsTaken];
+                context.stepsTaken = stepsTaken;
+            }
+
             result = takeStep.call(context, context.step, result);
             return Promise.resolve(result);
         }
