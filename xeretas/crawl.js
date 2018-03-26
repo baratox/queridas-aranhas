@@ -131,9 +131,14 @@ knownTricks['scrape'] = function(options, response) {
         throw new TypeError("Step 'scrape' must follow a 'request'.")
     }
 
-    var scraped = scraper.select(options.select).as(options.schema)
-                         .scrape(response);
-    response.scraped = scraped;
+    var scraped;
+    if (options.schema) {
+        scraped = scraper.select(options.select).as(options.schema).scrape(response);
+        response.scraped = scraped;
+    } else {
+        response.schema = scraper.select(options.select).describe(response);
+    }
+
     return response;
 }
 
