@@ -77,8 +77,6 @@ function makeRequest(options) {
         });
 }
 
-// TODO Support 'next' page
-// TODO Translate qs array as multiple requests
 knownTricks['request'] = function(options, resolution) {
     if (typeof options === 'string' || options instanceof String) {
         options = { url: options };
@@ -200,11 +198,6 @@ function crawler(options) {
 
     options = Object.assign({}, defaultOptions, options);
 
-    function acceptAndMoveOn(error, record) {
-        console.error("Error:", error, "\n  record:" + JSON.toString(record));
-        return Promise.resolve();
-    }
-
     function createOrUpdate(record, response) {
         if (!options.findOrCreate) {
             throw Error("Option 'findOrCreate' is required.");
@@ -247,24 +240,7 @@ function crawler(options) {
                 );
             });
 
-            var promise = Promise.all(promises);
-
-            // If headers have a next page link, request it too using same crawling options.
-            // if (response.headers.link) {
-            //     return promise.then(() => {
-            //         var links = response.headers.link.split(",")
-            //                         .filter((link) => link.match(/rel="next"/));
-            //         if (links.length > 0) {
-            //             var next = new RegExp(/<(.*)>/).exec(links[0])[1];
-            //             var nextRequest = Object.assign({}, options.request, { 'url': next });
-            //             return makeRequest(Object.assign({}, options, { 'request': nextRequest }))
-            //                     .then(processResponse);
-            //         }
-            //     });
-
-            // } else {
-            return promise;
-            // }
+            return Promise.all(promises);
 
         } else if (typeof scraped == 'object') {
             return options.promiseTo(scraped, response)
