@@ -64,6 +64,8 @@ function Crawler(tricks = {}) {
         var clone = Crawler(tricks);
         if (options && typeof options === 'object') {
             Object.keys(options).forEach(trick => {
+                // Updates defaults for each step that have a corresponding set
+                // of options in the arguments object.
                 clone.trick(trick, null,
                     Object.assign({}, clone.trick(trick).defaults, options[trick]));
             });
