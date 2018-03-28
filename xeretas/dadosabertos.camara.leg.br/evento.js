@@ -1,9 +1,18 @@
-const Sequelize = require('sequelize');
-const Op = Sequelize.Op;
-
 const crawl = require('../crawl.js');
 
 const { Termo } = require('../../model');
+
+function reduce(list, keyAttr, valueAttr = 'id') {
+    if (list.length > 0) {
+        return list.reduce((map, t) => {
+            map[t[keyAttr]] = t[valueAttr];
+            return map;
+        }, {});
+
+    } else {
+        throw Error("References not available.");
+    }
+}
 
 module.exports = {
     name: "Evento",
@@ -14,46 +23,49 @@ module.exports = {
               "que promovem esses eventos, também podem participar autoridades e " +
               "representantes de empresas e instituições da sociedade.",
 
-    command: function() {
-        // Creates a map of all Termo instances, mapped to their idCamara.
-        return Termo.findAll({ where: {
-            tipo: { [Op.in]: ['tiposEvento', 'situacoesEvento'] }
-        }}).then((termos) => {
-            if (termos.length > 0) {
-                // Services return the term name instead of the id.
-                return termos.reduce((map, t) => {
-                    map[t.tipo][t.nome] = t.id;
-                    return map;
-                }, { 'tiposEvento': {}, 'situacoesEvento': {} });
-
-            } else {
-                throw Error("References not available.");
+    command: crawl.stepByStep([
+        { 'set': function() {
+            return {
+                tiposEvento: Termo.findAll({ where: { tipo: 'tiposEvento' }})
+                                  .then(termos => reduce(termos, 'nome')),
+                situacoesEvento: Termo.findAll({ where: { tipo: 'situacoesEvento' }})
+                                      .then(termos => reduce(termos, 'nome'))
             }
+        }},
 
-        }).then((termMaps) => {
-            var crawler = crawl.json({
-                request: {
-                    url: 'https://dadosabertos.camara.leg.br/api/v2/eventos',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Accept-Charset': 'utf-8'
-                    },
-                    qs: {
-                        'dataInicio': '1500-01-01',
-                        'itens': 100,
-                        'ordenarPor': 'id'
-                    }
-                },
+        { 'request': {
+            url: 'https://dadosabertos.camara.leg.br/api/v2/eventos',
+            headers: {
+                'Accept': 'application/json',
+                'Accept-Charset': 'utf-8'
+            },
+            qs: {
+                'dataInicio': '1500-01-01',
+                'itens': 100,
+                'ordenarPor': 'id'
+            }
+        }},
 
+        { 'request': function(response) {
+            return response.scraped.map(evento => ({
+                url: 'https://dadosabertos.camara.leg.br/api/v2/eventos/' + evento.idCamara,
+                headers: {
+                    'Accept': 'application/json',
+                    'Accept-Charset': 'utf-8'
+                }
+            }));
+        }},
+
+        { 'scrape': function() {
+            return {
                 select: 'dados',
-
                 schema: (scrape) => ({
                     idCamara: scrape('id').as.number(),
                     uri: scrape('uri').as.text(),
                     inicio: scrape('dataHoraInicio').as.date('YYYY/MM/DD/HH/mm'),
                     fim: scrape('dataHoraFim').as.date('YYYY/MM/DD/HH/mm'),
-                    situacao: scrape('descricaoSituacao').as.mapped(termMaps['situacoesEvento']),
-                    tipo: scrape('descricaoTipo').as.mapped(termMaps['tiposEvento']),
+                    situacao: scrape('descricaoSituacao').as.mapped(this.situacoesEvento),
+                    tipo: scrape('descricaoTipo').as.mapped(this.tiposEvento),
                     titulo: scrape('titulo').as.text(),
                     // localExterno: ?
                     orgaos: scrape('orgaos.id').as.number(),
@@ -63,15 +75,14 @@ module.exports = {
                         andar: scrape('andar').as.text(),
                         sala: scrape('sala').as.text(),
                     }))
-                }),
+                })
+            }
+        }},
 
-                promiseTo: (scraped, response) => {
-                    console.debug("Got", JSON.stringify(scraped, 2));
-                    return Promise.resolve(scraped);
-                }
-            });
-
-            return crawler();
-        });
-    }
+        { 'createOrUpdate': {
+            promiseTo: (scraped, response) => {
+                return Promise.resolve(scraped);
+            }
+        }}
+    ])
 }

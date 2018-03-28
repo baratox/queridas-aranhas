@@ -4,6 +4,7 @@
   "description": "Programinha que ama bisbilhotar a vida política...",
   "main": "queridas.js",
   "dependencies": {
+    "array-flatten": "^2.1.1",
     "bfj": "^5.2.0",
     "bottleneck": "^2.0.1",
     "cheerio": "^1.0.0-rc.2",

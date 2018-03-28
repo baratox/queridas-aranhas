@@ -10,7 +10,9 @@ module.exports = {
               "filiações partidárias e lideranças.",
 
     command: crawl.xml({
-        request: 'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterDeputados',
+        request: {
+            url: 'http://www.camara.leg.br/SitCamaraWS/Deputados.asmx/ObterDeputados'
+        },
 
         select: 'deputados deputado',
 
