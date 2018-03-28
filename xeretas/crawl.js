@@ -7,8 +7,52 @@ const scraper = require('../util/scrape');
 const { writeText } = require('../util/json');
 const path = require('path');
 
+var tricks = {};
 
-const knownTricks = {};
+function trick(name, executor, defaults = {}) {
+    if (arguments.length === 1) {
+        if (tricks[name]) {
+            return tricks[name];
+        } else {
+            throw TypeError("Unknown trick '{}'.".format(name));
+        }
+
+    } else if (arguments.length > 1) {
+        var trick = tricks[name];
+        if (trick === undefined) {
+            trick = {
+                'name': name
+            }
+
+            tricks[name] = trick;
+        }
+
+        // Sets or updates the executor function
+        if (executor && typeof executor === 'function') {
+            trick['execute'] = function(context, options, resolution) {
+                console.log("Executing trick", this.name);
+                if (typeof options === 'function') {
+                    options = options.call(context, resolution);
+                }
+
+                var instances = options.constructor === Array ? options : [options];
+                instances = instances.map(instanceOptions => {
+                    // Apply default options to each execution
+                    instanceOptions = Object.assign({}, this.defaults, instanceOptions);
+                    return executor.apply(context, [instanceOptions, resolution]);
+                });
+
+                return instances.length === 1 ? instances[0] : instances;
+            }
+        }
+
+        if (arguments.length >= 3) {
+            trick['defaults'] = defaults;
+        }
+
+        return trick;
+    }
+}
 
 /**
  * Updates the context with the enumerable properties of `fields`. If a field
@@ -16,7 +60,7 @@ const knownTricks = {};
  *
  * Returns a Promise that resolves after all fields are resolved.
  */
- knownTricks['set'] = function(fields, resolution) {
+trick('set', function(fields, resolution) {
     var promises = [];
     Object.keys(fields).forEach(field => {
         promises.push(Promise.resolve(fields[field]).then((val) => {
@@ -27,7 +71,7 @@ const knownTricks = {};
 
     // Returns the original resolution, after all evaluating promises resolve.
     return Promise.all(promises).then(() => resolution);
-}
+});
 
 function dumpResponse(request, response) {
     // Save the raw response to the disk
@@ -42,30 +86,11 @@ function dumpResponse(request, response) {
 }
 
 function makeRequest(options) {
-    var req = Object.assign({}, options.request);
-
-    req['resolveWithFullResponse'] = true;
-    req['transform2xxOnly'] = true;
-    req['transform'] = function(body, response, resolveWithFullResponse) {
-        // Save the raw response
-        dumpResponse(req, response);
-
-        // Scrape the body and return
-        if (options.scrape) {
-            var scraped = options.scrape(body);
-            if (resolveWithFullResponse) {
-                response.scraped = scraped;
-                return response;
-            } else {
-                return scraped;
-            }
-        } else {
-            return resolveWithFullResponse ? response : body;
-        }
-    };
-
-    console.info("GET", req.url, req.qs ? '? ' + JSON.stringify(req.qs) : '');
-    return request(req).catch((error) => {
+    console.info("GET", options.url, options ? '? ' + JSON.stringify(options) : '');
+    return options.request(options).then(response => {
+            dumpResponse(options, response);
+            return response;
+        }).catch(error => {
             // TODO If it's a temporary problem, retry.
             if (error instanceof RequestErrors.StatusCodeError) {
                 console.error("Request failed with non 2xx status:", error.response.statusCode);
@@ -77,82 +102,142 @@ function makeRequest(options) {
         });
 }
 
-knownTricks['request'] = function(options, resolution) {
+trick('request', function(options, resolution) {
     if (typeof options === 'string' || options instanceof String) {
         options = { url: options };
     }
 
-    if (options.constructor !== Array) {
-        options = [options];
+    let context = this;
+    function repeatRequestIfNextPage(response) {
+        var success = response && /^2/.test('' + response.statusCode);
+        // If headers has a next page link, request it too using same crawling options.
+        if (success && response.headers.link) {
+            var links = response.headers.link.split(",")
+                            .filter((link) => link.match(/rel="next"/));
+            if (links.length > 0) {
+                var next = new RegExp(/<(.*)>/).exec(links[0])[1];
+                // Repeat this 'request' step, only changing the url
+                var s = Object.assign({}, options, { 'url': next });
+                // s = Object.assign({}, context.step, { 'request': s });
+
+                var ctx = Object.assign({}, context);
+
+                return [
+                    response,
+                    takeStep.call(ctx, s, ctx.stepsTaken)
+                ];
+            }
+        }
+
+        return response;
     }
 
     var promises = [];
-    options.forEach(request => {
-        let context = this;
-        function repeatRequestIfNextPage(response) {
-            var success = response && /^2/.test('' + response.statusCode);
-            // If headers has a next page link, request it too using same crawling options.
-            if (success && response.headers.link) {
-                var links = response.headers.link.split(",")
-                                .filter((link) => link.match(/rel="next"/));
-                if (links.length > 0) {
-                    var next = new RegExp(/<(.*)>/).exec(links[0])[1];
-                    // Repeat this 'request' step, only changing the url
-                    var s = Object.assign({}, request, { 'url': next });
-                    s = Object.assign({}, context.step, { 'request': s });
+    if (typeof options.url === 'string' || options.url instanceof String) {
+        promises.push(makeRequest(options).then(repeatRequestIfNextPage));
 
-                    var ctx = Object.assign({}, context);
+    } else if (Array.isArray(options.url)) {
+        options.url.forEach((url) => {
+            var urlRequest = Object.assign({}, options, { 'url': url });
+            promises.push(
+                makeRequest(urlRequest).then(repeatRequestIfNextPage));
+        })
 
-                    return [
-                        response,
-                        takeStep.call(ctx, s, ctx.stepsTaken)
-                    ];
-                }
-            }
-
-            return response;
-        }
-
-        if (typeof request.url === 'string' || request.url instanceof String) {
-            promises.push(makeRequest({ 'request': request }).then(repeatRequestIfNextPage));
-
-        } else if (Array.isArray(request.url)) {
-            request.url.forEach((url) => {
-                request = Object.assign({}, options, { 'url': url });
-                promises.push(
-                    makeRequest({ 'request': request }).then(repeatRequestIfNextPage));
-            })
-
-        } else {
-            throw Error("Invalid request URL:", request.url);
-        }
-    });
+    } else {
+        throw Error("Invalid request URL:", options.url);
+    }
 
     return promises;
-}
+}, {
+    'request': request,
+    'resolveWithFullResponse': true,
+    'transform2xxOnly': true
+});
 
-knownTricks['scrape'] = function(options, response) {
+trick('scrape', function(options, response) {
     if (response.request === undefined) {
         throw new TypeError("Step 'scrape' must follow a 'request'.")
     }
 
     console.debug("Scraping", response.request.uri.href);
 
-    var scraped;
-    if (options.schema) {
-        scraped = scraper.select(options.select).as(options.schema).scrape(response);
-        response.scraped = scraped;
-    } else {
-        response.schema = scraper.select(options.select).describe(response);
+    var configuredScraper = scraper;
+    if (options.select) {
+        configuredScraper = configuredScraper.select(options.select);
+    }
+
+    if (options.scrape) {
+        response.scraped = configuredScraper.as(options.schema).scrape(response);
+    }
+
+    if (options.describe) {
+        response.schema = configuredScraper.describe(response);
     }
 
     return response;
-}
 
-knownTricks['createOrUpdate'] = function(options, response) {
-    var _crawler = crawler(options);
-    return _crawler.processResponse(response);
-}
+}, {
+    'scrape': true,
+    'describe': false,
+    'select': undefined,
+    'schema': function() { }
+});
+
+trick('createOrUpdate', function(options, response) {
+    if (!(/^2/.test('' + response.statusCode))) {
+        console.error("Request failed with status", response.statusCode);
+        return Promise.resolve(response);
+    }
+
+    var scraped = response.scraped;
+    if (!scraped) {
+        console.error("Incomprehensible Response for ", response.request.url);
+        return Promise.resolve(response);
+    }
+
+    if (scraped.constructor === Array) {
+        var promises = [];
+        scraped.forEach((record, i) => {
+            promises.push(options.promiseTo(options, response, record)
+                .catch((error) => {
+                    console.error("Error:", error, "\n  record:", JSON.toString(record));
+                    return Promise.resolve();
+                })
+            );
+        });
+
+        return Promise.all(promises);
+
+    } else if (typeof scraped == 'object') {
+        return options.promiseTo(options, response, scraped)
+            .catch((error) => {
+                console.error("Error:", error);
+                return Promise.resolve();
+            });
+    }
+}, {
+    'promiseTo': function (options, response, record) {
+        if (!options.findOrCreate) {
+            throw Error("Option 'findOrCreate' is required.");
+        }
+
+        if (typeof options.extendRecord == 'function') {
+            Object.assign(record, options.extendRecord(record, response));
+        }
+
+        var promise = findAndUpdateOrCreate(options.findOrCreate, record);
+
+        // Chain all options.spread in sequence.
+        if (typeof options.spread == 'function') {
+            promise = promise.then(options.spread);
+        }
+
+        return promise;
+    },
+    'extendRecord': null,
+    'findOrCreate': null,
+    'spread': null
+});
 
 function findAndUpdateOrCreate(findOrCreate, record) {
     var promise = findOrCreate(record);
@@ -184,107 +269,6 @@ function findAndUpdateOrCreate(findOrCreate, record) {
         });
 }
 
-function crawler(options) {
-    const defaultOptions = {
-        scrape: null,
-        schema: null,
-        select: '*',
-
-        promiseTo: createOrUpdate,
-        findOrCreate: null,
-
-        spread: null
-    };
-
-    options = Object.assign({}, defaultOptions, options);
-
-    function createOrUpdate(record, response) {
-        if (!options.findOrCreate) {
-            throw Error("Option 'findOrCreate' is required.");
-        }
-
-        if (typeof options.extendRecord == 'function') {
-            Object.assign(record, options.extendRecord(record, response));
-        }
-
-        var promise = findAndUpdateOrCreate(options.findOrCreate, record);
-
-        // Chain all options.spread in sequence.
-        if (typeof options.spread == 'function') {
-            promise = promise.spread(options.spread);
-        }
-
-        return promise;
-    }
-
-    function processResponse(response) {
-        if (!(/^2/.test('' + response.statusCode))) {
-            console.error("Request failed with status", response.statusCode);
-            return Promise.resolve(response);
-        }
-
-        var scraped = response.scraped;
-        if (!scraped) {
-            console.error("Incomprehensible Response for ", response.request.url);
-            return Promise.resolve(response);
-        }
-
-        if (scraped.constructor === Array) {
-            var promises = [];
-            scraped.forEach((record, i) => {
-                promises.push(options.promiseTo(record, response)
-                    .catch((error) => {
-                        console.error("Error:", error, "\n  record:", JSON.toString(record));
-                        return Promise.resolve();
-                    })
-                );
-            });
-
-            return Promise.all(promises);
-
-        } else if (typeof scraped == 'object') {
-            return options.promiseTo(scraped, response)
-                .catch((error) => {
-                    console.error("Error:", error);
-                    return Promise.resolve();
-                });
-        }
-
-    }
-
-    var crawl = function() {
-        var request = options.request;
-        if (typeof request !== 'object') {
-            request = {
-                url: request
-            }
-        }
-
-        if (typeof request.url === 'string' || request.url instanceof String) {
-            return makeRequest(options).then(processResponse);
-
-        } else if (Array.isArray(request.url)) {
-            var promises = [];
-            request.url.forEach((url) => {
-                request = Object.assign({}, options.request, { 'url': url });
-                promises.push(
-                    makeRequest(Object.assign({}, options, { 'request': request }))
-                    .then(processResponse));
-            })
-            return Promise.all(promises);
-
-        } else {
-            throw Error("Invalid request URL:", request.url);
-        }
-    }
-
-    // Expose internal functions for current options
-    crawl.createOrUpdate = createOrUpdate;
-    crawl.processResponse = processResponse;
-
-    return crawl;
-}
-
 
 
 /**
@@ -306,24 +290,21 @@ function takeStep(step, resolution) {
 
     } else if (typeof step === 'object') {
         var keys = Object.keys(step);
-        if (keys.length != 1) {
+        if (keys.length === 1) {
+            console.log("\nApplying trick '", keys[0], "' (", typeof resolution,
+                ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+
+            var options = step[keys[0]];
+            var t = trick(keys[0]);
+            result = t.execute(this, options, resolution);
+
+            console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
+                " to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+
+
+        } else {
             throw TypeError("Invalid trick step object.");
         }
-
-        var trick = knownTricks[keys[0]];
-        if (!trick) {
-            throw TypeError("Unknown trick '{}'.".format(keys[0]));
-        }
-
-        console.log("\nApplying trick '", keys[0], "' (", typeof resolution,
-            ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
-
-        var definition = step[keys[0]];
-        if (typeof definition === 'function') {
-            definition = definition.call(this, resolution);
-        }
-
-        result = trick.apply(this, [ definition, resolution ]);
 
     } else {
         console.log(this);
@@ -332,6 +313,7 @@ function takeStep(step, resolution) {
 
     if (result && result.constructor === Array) {
         if (this.stepsTaken + 1 < this.steps.length) {
+            console.log("Following next step for each.");
             result = result.map(n =>
                 walkOneStep(Promise.resolve(n), this, this.stepsTaken + 1));
         }
@@ -340,6 +322,7 @@ function takeStep(step, resolution) {
 
     } else {
         if (this.stepsTaken + 1 < this.steps.length) {
+            console.log("Following next step");
             result = walkOneStep(Promise.resolve(result), this, this.stepsTaken + 1);
         }
 
@@ -348,8 +331,9 @@ function takeStep(step, resolution) {
 }
 
 function walkOneStep(promise, context, stepsTaken=0) {
+    // console.log("Walking after", promise);
     return promise.then((result) => {
-
+        // console.log("Walking after ...", JSON.stringify(result));
         if (result && result.constructor === Array) {
             result = result.map(x => {
                 if (x && x.constructor !== Promise) {
@@ -383,36 +367,7 @@ function crawlStepByStep(steps) {
     return () => walkOneStep(promise, context);
 }
 
-
-
-
-function crawlXml(options) {
-    if (!options.scrape) {
-        options.scrape = (body) => {
-            return scraper.select(options.select)
-                          .as(options.schema)
-                          .scrape.xml(body);
-        }
-    }
-
-    return crawler(options);
-}
-
-function crawlJson(options) {
-    if (!options.scrape) {
-        options.scrape = (body) => {
-            return scraper.select(options.select)
-                          .as(options.schema)
-                          .scrape.json(body);
-        }
-    }
-
-    return crawler(options);
-}
-
 module.exports = {
-    raw: (options) => crawler(options),
-    xml: (options) => crawlXml(options),
-    json: (options) => crawlJson(options),
-    stepByStep: (steps) => crawlStepByStep(steps)
+    stepByStep: crawlStepByStep,
+    trick: trick
 };

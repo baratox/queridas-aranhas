@@ -80,9 +80,6 @@ module.exports = {
         }},
 
         { 'createOrUpdate': {
-            promiseTo: (scraped, response) => {
-                return Promise.resolve(scraped);
-            }
         }}
     ])
 }
