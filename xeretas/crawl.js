@@ -7,52 +7,175 @@ const scraper = require('../util/scrape');
 const { writeText } = require('../util/json');
 const path = require('path');
 
-var tricks = {};
+function Crawler(tricks = {}) {
+    // Deep clone all tricks
+    tricks = Object.assign({}, tricks);
+    Object.keys(tricks).forEach(trick => {
+        tricks[trick] = Object.assign({}, tricks[trick]);
+    })
 
-function trick(name, executor, defaults = {}) {
-    if (arguments.length === 1) {
-        if (tricks[name]) {
-            return tricks[name];
-        } else {
-            throw TypeError("Unknown trick '{}'.".format(name));
-        }
-
-    } else if (arguments.length > 1) {
-        var trick = tricks[name];
-        if (trick === undefined) {
-            trick = {
-                'name': name
+    function trick(name, executor, defaults = {}) {
+        if (arguments.length === 1) {
+            if (tricks[name]) {
+                return tricks[name];
+            } else {
+                throw TypeError("Unknown trick '" + name + "'");
             }
 
-            tricks[name] = trick;
-        }
-
-        // Sets or updates the executor function
-        if (executor && typeof executor === 'function') {
-            trick['execute'] = function(context, options, resolution) {
-                console.log("Executing trick", this.name);
-                if (typeof options === 'function') {
-                    options = options.call(context, resolution);
+        } else if (arguments.length > 1) {
+            var trick = tricks[name];
+            if (trick === undefined) {
+                trick = {
+                    'name': name
                 }
 
-                var instances = options.constructor === Array ? options : [options];
-                instances = instances.map(instanceOptions => {
-                    // Apply default options to each execution
-                    instanceOptions = Object.assign({}, this.defaults, instanceOptions);
-                    return executor.apply(context, [instanceOptions, resolution]);
+                tricks[name] = trick;
+            }
+
+            // Sets or updates the executor function
+            if (executor && typeof executor === 'function') {
+                trick['execute'] = function(context, options, resolution) {
+                    console.log("Executing trick", this.name);
+                    if (typeof options === 'function') {
+                        options = options.call(context, resolution);
+                    }
+
+                    var instances = options.constructor === Array ? options : [options];
+                    instances = instances.map(instanceOptions => {
+                        // Apply default options to each execution
+                        instanceOptions = Object.assign({}, this.defaults, instanceOptions);
+                        return executor.apply(context, [instanceOptions, resolution]);
+                    });
+
+                    return instances.length === 1 ? instances[0] : instances;
+                }
+            }
+
+            if (arguments.length >= 3) {
+                trick['defaults'] = defaults;
+            }
+
+            return trick;
+        }
+    }
+
+    // Returns a copy of this crawler with the given options applied as defaults to each step.
+    function defaults(options) {
+        var clone = Crawler(tricks);
+        if (options && typeof options === 'object') {
+            Object.keys(options).forEach(trick => {
+                clone.trick(trick, null,
+                    Object.assign({}, clone.trick(trick).defaults, options[trick]));
+            });
+        }
+
+        return clone;
+    }
+
+    /**
+     * Takes a single `step`. Steps may be defined as:
+     * a) A function, to be called with the previous' step `resolution` as argument.
+     * b) An object with a single property with the name of a trick to be executed
+     *    with two arguments: the value of the property and `resolution`.
+     *    If the value is a function, it's evaluated before executing the trick.
+     */
+    function takeStep(step, resolution) {
+        this.history = (this.history ? this.history + '-->' : '')
+            + (Math.random()*0xFF<<0).toString(16);
+
+        var result;
+        if (typeof step === 'function') {
+            console.log("\nApplying function ", step.name, "(", typeof resolution,
+                ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+            result = step.call(this, resolution);
+
+        } else if (typeof step === 'object') {
+            var keys = Object.keys(step);
+            if (keys.length === 1) {
+                console.log("\nApplying trick '", keys[0], "' (", typeof resolution,
+                    ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+
+                var options = step[keys[0]];
+                var t = trick(keys[0]);
+                result = t.execute(this, options, resolution);
+
+                console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
+                    " to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+
+
+            } else {
+                throw TypeError("Invalid trick step object.");
+            }
+
+        } else {
+            console.log(this);
+            throw TypeError("Steps must be either a 'function' or an 'object', not " + typeof step);
+        }
+
+        if (result && result.constructor === Array) {
+            if (this.stepsTaken + 1 < this.steps.length) {
+                console.log("Following next step for each.");
+                result = result.map(n =>
+                    walkOneStep(Promise.resolve(n), this, this.stepsTaken + 1));
+            }
+
+            return Promise.all(result);
+
+        } else {
+            if (this.stepsTaken + 1 < this.steps.length) {
+                console.log("Following next step");
+                result = walkOneStep(Promise.resolve(result), this, this.stepsTaken + 1);
+            }
+
+            return Promise.resolve(result);
+        }
+    }
+
+    function walkOneStep(promise, context, stepsTaken=0) {
+        // console.log("Walking after", promise);
+        return promise.then((result) => {
+            // console.log("Walking after ...", JSON.stringify(result));
+            if (result && result.constructor === Array) {
+                result = result.map(x => {
+                    if (x && x.constructor !== Promise) {
+                        return walkOneStep(Promise.resolve(x), context, stepsTaken);
+                    } else {
+                        return x;
+                    }
                 });
 
-                return instances.length === 1 ? instances[0] : instances;
+                return Promise.all(result);
+
+            } else {
+                context = Object.assign({}, context);
+                if (context.stepsTaken != stepsTaken) {
+                    context.step = context.steps[stepsTaken];
+                    context.stepsTaken = stepsTaken;
+                }
+
+                result = takeStep.call(context, context.step, result);
+                return Promise.resolve(result);
             }
-        }
+        });
+    }
 
-        if (arguments.length >= 3) {
-            trick['defaults'] = defaults;
-        }
+    function crawlStepByStep(steps) {
+        // Ensure steps is an Array
+        steps = steps.constructor == Array ? steps : [steps];
 
-        return trick;
+        var context = { 'steps': steps };
+        var promise = Promise.resolve();
+        return () => walkOneStep(promise, context);
+    }
+
+    return {
+        stepByStep: crawlStepByStep,
+        trick: trick,
+        defaults: defaults
     }
 }
+
+var crawler = Crawler();
 
 /**
  * Updates the context with the enumerable properties of `fields`. If a field
@@ -60,7 +183,7 @@ function trick(name, executor, defaults = {}) {
  *
  * Returns a Promise that resolves after all fields are resolved.
  */
-trick('set', function(fields, resolution) {
+crawler.trick('set', function(fields, resolution) {
     var promises = [];
     Object.keys(fields).forEach(field => {
         promises.push(Promise.resolve(fields[field]).then((val) => {
@@ -102,7 +225,7 @@ function makeRequest(options) {
         });
 }
 
-trick('request', function(options, resolution) {
+crawler.trick('request', function(options, resolution) {
     if (typeof options === 'string' || options instanceof String) {
         options = { url: options };
     }
@@ -154,7 +277,7 @@ trick('request', function(options, resolution) {
     'transform2xxOnly': true
 });
 
-trick('scrape', function(options, response) {
+crawler.trick('scrape', function(options, response) {
     if (response.request === undefined) {
         throw new TypeError("Step 'scrape' must follow a 'request'.")
     }
@@ -183,7 +306,7 @@ trick('scrape', function(options, response) {
     'schema': function() { }
 });
 
-trick('createOrUpdate', function(options, response) {
+crawler.trick('createOrUpdate', function(options, response) {
     if (!(/^2/.test('' + response.statusCode))) {
         console.error("Request failed with status", response.statusCode);
         return Promise.resolve(response);
@@ -269,105 +392,4 @@ function findAndUpdateOrCreate(findOrCreate, record) {
         });
 }
 
-
-
-/**
- * Takes a single `step`. Steps may be defined as:
- * a) A function, to be called with the previous' step `resolution` as argument.
- * b) An object with a single property with the name of a trick to be executed
- *    with two arguments: the value of the property and `resolution`.
- *    If the value is a function, it's evaluated before executing the trick.
- */
-function takeStep(step, resolution) {
-    this.history = (this.history ? this.history + '-->' : '')
-        + (Math.random()*0xFF<<0).toString(16);
-
-    var result;
-    if (typeof step === 'function') {
-        console.log("\nApplying function ", step.name, "(", typeof resolution,
-            ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
-        result = step.call(this, resolution);
-
-    } else if (typeof step === 'object') {
-        var keys = Object.keys(step);
-        if (keys.length === 1) {
-            console.log("\nApplying trick '", keys[0], "' (", typeof resolution,
-                ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
-
-            var options = step[keys[0]];
-            var t = trick(keys[0]);
-            result = t.execute(this, options, resolution);
-
-            console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
-                " to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
-
-
-        } else {
-            throw TypeError("Invalid trick step object.");
-        }
-
-    } else {
-        console.log(this);
-        throw TypeError("Steps must be either a 'function' or an 'object', not " + typeof step);
-    }
-
-    if (result && result.constructor === Array) {
-        if (this.stepsTaken + 1 < this.steps.length) {
-            console.log("Following next step for each.");
-            result = result.map(n =>
-                walkOneStep(Promise.resolve(n), this, this.stepsTaken + 1));
-        }
-
-        return Promise.all(result);
-
-    } else {
-        if (this.stepsTaken + 1 < this.steps.length) {
-            console.log("Following next step");
-            result = walkOneStep(Promise.resolve(result), this, this.stepsTaken + 1);
-        }
-
-        return Promise.resolve(result);
-    }
-}
-
-function walkOneStep(promise, context, stepsTaken=0) {
-    // console.log("Walking after", promise);
-    return promise.then((result) => {
-        // console.log("Walking after ...", JSON.stringify(result));
-        if (result && result.constructor === Array) {
-            result = result.map(x => {
-                if (x && x.constructor !== Promise) {
-                    return walkOneStep(Promise.resolve(x), context, stepsTaken);
-                } else {
-                    return x;
-                }
-            });
-
-            return Promise.all(result);
-
-        } else {
-            context = Object.assign({}, context);
-            if (context.stepsTaken != stepsTaken) {
-                context.step = context.steps[stepsTaken];
-                context.stepsTaken = stepsTaken;
-            }
-
-            result = takeStep.call(context, context.step, result);
-            return Promise.resolve(result);
-        }
-    });
-}
-
-function crawlStepByStep(steps) {
-    // Ensure steps is an Array
-    steps = steps.constructor == Array ? steps : [steps];
-
-    var context = { 'steps': steps };
-    var promise = Promise.resolve();
-    return () => walkOneStep(promise, context);
-}
-
-module.exports = {
-    stepByStep: crawlStepByStep,
-    trick: trick
-};
+module.exports = crawler;
