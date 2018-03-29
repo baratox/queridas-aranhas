@@ -7,6 +7,8 @@ services:
             - ./:/usr/queridas/
         links:
             - db
+        environment:
+            DEBUG: 0
     db:
         image: postgres:10.2-alpine
         restart: always

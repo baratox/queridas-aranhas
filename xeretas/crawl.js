@@ -8,6 +8,8 @@ const scraper = require('../util/scrape');
 const { writeText } = require('../util/json');
 const path = require('path');
 
+const DEBUG = process.env.DEBUG == 1 || false;
+
 function Crawler(inheritedTricks = {}) {
     // Deep clone all tricks
     var tricks = _.cloneDeep(inheritedTricks);
@@ -90,22 +92,28 @@ function Crawler(inheritedTricks = {}) {
 
         var result;
         if (typeof step === 'function') {
-            console.log("\nApplying function ", step.name, "(", typeof resolution,
-                ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+            if (DEBUG) {
+                console.log("\nApplying function ", step.name, "(", typeof resolution,
+                    ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+            }
             result = step.call(this, resolution);
 
         } else if (typeof step === 'object') {
             var keys = Object.keys(step);
             if (keys.length === 1) {
-                console.log("\nApplying trick '", keys[0], "' (",
-                    resolution && resolution.constructor ? resolution.constructor.name : typeof resolution,
-                    ") to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                if (DEBUG) {
+                    console.log("\nApplying trick '", keys[0], "' (",
+                        resolution && resolution.constructor ? resolution.constructor.name : typeof resolution,
+                        ") to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                }
 
                 var t = trick(keys[0]);
                 result = t.execute(this, step[keys[0]], resolution, options);
 
-                // console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
-                //     " to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                if (DEBUG) {
+                    console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
+                        " to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                }
 
             } else {
                 throw TypeError("Invalid trick step object.");
