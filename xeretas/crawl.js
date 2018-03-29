@@ -176,7 +176,9 @@ function Crawler(inheritedTricks = {}) {
         steps = steps.constructor == Array ? steps : [steps];
 
         var context = { 'steps': steps };
-        return () => walkOneStep(context);
+        return () => walkOneStep(context).catch(error => {
+            console.error("Crawler failed with", error.constructor ? error.constructor.name : typeof error);
+        });
     }
 
     return {
@@ -229,11 +231,11 @@ function makeRequest(options) {
         // TODO If it's a temporary problem, retry.
         if (error instanceof RequestErrors.StatusCodeError) {
             console.error("Request failed with non 2xx status:", error.response.statusCode);
-            return error.response;
         } else {
-            console.error("Request failed.", error);
-            throw error;
+            console.error("Request failed with", error);
         }
+
+        throw error;
     });
 }
 
