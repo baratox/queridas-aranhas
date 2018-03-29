@@ -42,7 +42,7 @@ program.command('xeretem [alvo]').alias('x')
                     // Schedule as a rate-limitted job
                     limiter.schedule(crawler.command);
 
-                } else {
+                } else if (typeof crawler === 'function') {
                     // Run as a function
                     crawler();
                 }
