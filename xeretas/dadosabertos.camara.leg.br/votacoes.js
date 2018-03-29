@@ -1,6 +1,6 @@
 'use strict';
 
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Proposicao } = require('../../model');
 
@@ -9,7 +9,7 @@ module.exports = {
     describe: "Detalhes sobre cada votação, como o relator, o encaminhamento dado como " +
               "consequência da votação e as orientações das bancadas.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 // SELECT DISTINCT V.idCamara FROM VotacaoProposicao
@@ -20,16 +20,11 @@ module.exports = {
 
         { 'request': function() {
             return this.votacoes.map(votacao => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/votacoes/' + votacao + '/votacoes',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                }
+                url: '/votacoes/' + votacao + '/votacoes'
             }))
         }},
 
         { 'scrape': {
-            select: 'dados'
         }}
     ])
 }

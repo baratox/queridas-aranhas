@@ -1,4 +1,4 @@
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Partido } = require('../../model');
 
@@ -6,7 +6,7 @@ module.exports = {
     name: "Partidos",
     describe: "Partidos políticos que têm ou já tiveram deputados na Câmara.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 legislaturas: Legislatura.findAll({ attributes: ['idCamara'] })
@@ -16,11 +16,7 @@ module.exports = {
 
         { 'request': function() {
             return this.legislaturas.map(l => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/partidos/',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                },
+                url: '/partidos/',
                 qs: {
                     'idLegislatura': l,
                     'itens': 100
@@ -29,7 +25,6 @@ module.exports = {
         }},
 
         { 'scrape': {
-            select: 'dados',
             schema: (scrape) => ({
                 idCamara: scrape('id').as.number()
             })
@@ -37,16 +32,11 @@ module.exports = {
 
         { 'request': function(response) {
             return response.scraped.map(partido => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/partidos/' + partido.idCamara,
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                }
+                url: '/partidos/' + partido.idCamara
             }));
         }},
 
         { 'scrape': {
-            select: 'dados'
         }}
 
     ])

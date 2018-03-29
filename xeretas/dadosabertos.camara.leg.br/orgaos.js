@@ -1,18 +1,6 @@
-const crawl = require('../crawl.js');
+const { crawler, lookupReferenceEnum } = require('.');
 
-const { Orgao, Termo } = require('../../model');
-
-function reduce(list, keyAttr, valueAttr = 'id') {
-    if (list.length > 0) {
-        return list.reduce((map, t) => {
-            map[t[keyAttr]] = t[valueAttr];
-            return map;
-        }, {});
-
-    } else {
-        throw Error("References not available.");
-    }
-}
+const { Orgao } = require('../../model');
 
 module.exports = {
     name: "Órgão Legislativo",
@@ -23,27 +11,21 @@ module.exports = {
               "procuradorias, conselhos e o próprio Plenário, integrado por todos os " +
               "deputados e órgão supremo das decisões da casa.",
 
-     command: crawl.stepByStep([
+     command: crawler.stepByStep([
         { 'set': function() {
             return {
-                tiposOrgao: Termo.findAll({ where: { tipo: 'tiposOrgao' }})
-                                 .then(termos => reduce(termos, 'idCamara'))
+                tiposOrgao: lookupReferenceEnum('tiposOrgao')
             }
         }},
 
         { 'request': {
-            url: 'https://dadosabertos.camara.leg.br/api/v2/orgaos/',
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Charset': 'utf-8'
-            },
+            url: '/orgaos/',
             qs: {
-                itens: 10
+                itens: 100
             }
         }},
 
         { 'scrape': {
-            select: 'dados',
             schema: (scrape) => ({
                 idCamara: scrape('id').as.number()
             })
@@ -51,17 +33,12 @@ module.exports = {
 
         { 'request': function(response) {
             return response.scraped.map(orgao => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/orgaos/' + orgao.idCamara,
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                }
+                url: '/orgaos/' + orgao.idCamara
             }));
         }},
 
         { 'scrape': function() {
             return {
-                select: 'dados',
                 schema: (scrape) => ({
                     // Gets the same properties as basic listing, just in case they changed.
                     idCamara: scrape('id').as.number(),

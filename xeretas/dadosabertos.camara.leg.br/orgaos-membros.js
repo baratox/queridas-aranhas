@@ -1,4 +1,4 @@
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Orgao } = require('../../model');
 
@@ -6,21 +6,17 @@ module.exports = {
     name: "Membros dos Órgãos",
     describe: "Membros do órgão legislativo.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 orgaos: Orgao.findAll({ attributes: ['idCamara'] })
-                                   .map(d => d.get('idCamara'))
+                             .map(d => d.get('idCamara'))
             }
-        },
+        }},
 
         { 'request': function() {
             return this.orgaos.map(orgao => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/orgaos/' + orgao + '/eventos',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                },
+                url: '/orgaos/' + orgao + '/eventos',
                 qs: {
                     'itens': 100,
                     'dataInicio': '1500-01-01',
@@ -30,7 +26,6 @@ module.exports = {
         }},
 
         { 'scrape': {
-            select: 'dados',
             schema: (scrape) => ({
                 idCamara: scrape('id').as.number()
             })

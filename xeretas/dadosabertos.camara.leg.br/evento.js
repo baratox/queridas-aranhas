@@ -1,18 +1,6 @@
-const crawl = require('../crawl.js');
+const { crawler, lookupReferenceEnum } = require('.');
 
 const { Termo } = require('../../model');
-
-function reduce(list, keyAttr, valueAttr = 'id') {
-    if (list.length > 0) {
-        return list.reduce((map, t) => {
-            map[t[keyAttr]] = t[valueAttr];
-            return map;
-        }, {});
-
-    } else {
-        throw Error("References not available.");
-    }
-}
 
 module.exports = {
     name: "Evento",
@@ -23,22 +11,16 @@ module.exports = {
               "que promovem esses eventos, também podem participar autoridades e " +
               "representantes de empresas e instituições da sociedade.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
-                tiposEvento: Termo.findAll({ where: { tipo: 'tiposEvento' }})
-                                  .then(termos => reduce(termos, 'nome')),
-                situacoesEvento: Termo.findAll({ where: { tipo: 'situacoesEvento' }})
-                                      .then(termos => reduce(termos, 'nome'))
+                tiposEvento: lookupReferenceEnum('tiposEvento', 'nome'),
+                situacoesEvento: lookupReferenceEnum('situacoesEvento', 'nome')
             }
         }},
 
         { 'request': {
-            url: 'https://dadosabertos.camara.leg.br/api/v2/eventos',
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Charset': 'utf-8'
-            },
+            url: '/eventos',
             qs: {
                 'dataInicio': '1500-01-01',
                 'itens': 100,
@@ -46,19 +28,20 @@ module.exports = {
             }
         }},
 
+        { 'scrape': {
+            schema: (scrape) => ({
+                idCamara: scrape('id').as.number()
+            })
+        }},
+
         { 'request': function(response) {
             return response.scraped.map(evento => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/eventos/' + evento.idCamara,
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                }
+                url: '/eventos/' + evento.idCamara
             }));
         }},
 
         { 'scrape': function() {
             return {
-                select: 'dados',
                 schema: (scrape) => ({
                     idCamara: scrape('id').as.number(),
                     uri: scrape('uri').as.text(),

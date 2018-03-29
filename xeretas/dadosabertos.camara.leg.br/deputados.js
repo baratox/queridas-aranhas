@@ -1,4 +1,4 @@
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Legislatura } = require('../../model');
 
@@ -10,7 +10,7 @@ module.exports = {
               "ou suplentes no exercício dos mandatos, que são as vagas que um " +
               "partido obtém para cada legislatura.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 legislaturas: Legislatura.findAll({ attributes: ['idCamara'] })
@@ -20,11 +20,7 @@ module.exports = {
 
         { 'request': function() {
             return this.legislaturas.map(l => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/deputados/',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                },
+                url: '/deputados/',
                 qs: {
                     'idLegislatura': l,
                     'itens': 100
@@ -33,7 +29,6 @@ module.exports = {
         }},
 
         { 'scrape': {
-            select: 'dados',
             schema: (scrape) => ({
                 idCamara: scrape('id').as.number()
             })
@@ -41,16 +36,11 @@ module.exports = {
 
         { 'request': function(response) {
             return response.scraped.map(deputado => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/deputados/' + deputado.idCamara,
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                }
+                url: '/deputados/' + deputado.idCamara,
             }));
         }},
 
         { 'scrape': {
-            select: 'dados'
         }}
 
     ])

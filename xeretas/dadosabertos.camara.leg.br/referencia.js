@@ -1,5 +1,4 @@
-const crawl = require('../crawl.js');
-
+const { crawler } = require('.');
 const { Termo } = require('../../model');
 
 module.exports = {
@@ -8,26 +7,21 @@ module.exports = {
               "classificação de tipos de proposições, situações de andamento de eventos, " +
               "etc.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'request': {
             url: [
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/situacoesDeputado',
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/situacoesEvento',
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/situacoesOrgao',
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/situacoesProposicao',
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/tiposEvento',
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/tiposOrgao',
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/tiposProposicao',
-                'https://dadosabertos.camara.leg.br/api/v2/referencias/uf'
-            ],
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Charset': 'utf-8'
-            }
+                '/referencias/situacoesDeputado',
+                '/referencias/situacoesEvento',
+                '/referencias/situacoesOrgao',
+                '/referencias/situacoesProposicao',
+                '/referencias/tiposEvento',
+                '/referencias/tiposOrgao',
+                '/referencias/tiposProposicao',
+                '/referencias/uf'
+            ]
         }},
 
         { 'scrape': {
-            select: 'dados',
             schema: (scrape) => ({
                 idCamara: scrape('id').as.text(),
                 sigla: scrape('sigla').as.text(),

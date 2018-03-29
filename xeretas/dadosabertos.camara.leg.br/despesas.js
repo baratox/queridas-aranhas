@@ -1,6 +1,6 @@
 const flatten = require('array-flatten');
 
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Legislatura, Deputado } = require('../../model');
 
@@ -9,7 +9,7 @@ module.exports = {
     describe: "Registros de pagamentos e reembolsos feitos pela Câmara em prol " +
               "do deputado, a título da chamada 'cota parlamentar'.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 legislaturas: Legislatura.findAll({ attributes: ['idCamara'] })
@@ -25,11 +25,7 @@ module.exports = {
             return flatten(
                 this.deputados.map(deputy =>
                     this.legislaturas.map(legislature => ({
-                        url: 'https://dadosabertos.camara.leg.br/api/v2/deputados/' + deputy + '/despesas',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Accept-Charset': 'utf-8'
-                        },
+                        url: '/deputados/' + deputy + '/despesas',
                         qs: {
                             'idLegislatura': legislature,
                             'itens': 100
@@ -40,7 +36,6 @@ module.exports = {
         }},
 
         { 'scrape': {
-            select: 'dados'
         }}
     ])
 }

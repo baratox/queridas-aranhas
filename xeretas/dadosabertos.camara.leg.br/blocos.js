@@ -1,6 +1,6 @@
 "use strict";
 
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Legislatura } = require('../../model');
 
@@ -12,7 +12,7 @@ module.exports = {
               "até o fim da legislatura em que foram criados: na legislatura seguinte, os mesmos " +
               "partidos, se associados, formam um novo bloco.",
 
-     command: crawl.stepByStep([
+     command: crawler.stepByStep([
         { 'set': function() {
             return {
                 legislaturas: Legislatura.findAll({ attributes: ['idCamara'] })
@@ -22,11 +22,7 @@ module.exports = {
 
         { 'request': function() {
             return this.legislaturas.map(l => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/blocos/',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                },
+                url: '/blocos/',
                 qs: {
                     'idLegislatura': l,
                     'itens': 100
@@ -35,7 +31,6 @@ module.exports = {
         }},
 
         { 'scrape': {
-            select: 'dados',
             schema: (scrape) => ({
                 idCamara: scrape('id').as.number()
             })
@@ -43,17 +38,11 @@ module.exports = {
 
         { 'request': function(response) {
             return response.scraped.map(bloco => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/orgaos/' + bloco.idCamara,
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                }
+                url: '/orgaos/' + bloco.idCamara,
             }));
         }},
 
         { 'scrape': {
-            select: 'dados'
         }}
-
     ])
 }

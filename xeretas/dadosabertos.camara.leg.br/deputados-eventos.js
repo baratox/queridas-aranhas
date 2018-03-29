@@ -1,4 +1,4 @@
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Deputado } = require('../../model');
 
@@ -6,7 +6,7 @@ module.exports = {
     name: "Participação dos Deputados em Eventos",
     describe: "Eventos nos quais a participação do deputado era ou é prevista.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 deputados: Deputado.findAll({ attributes: ['idCamara'] })
@@ -16,11 +16,7 @@ module.exports = {
 
         { 'request': function() {
             return this.deputados.map(deputy => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/deputados/' + deputy + '/eventos',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                },
+                url: '/deputados/' + deputy + '/eventos',
                 qs: {
                     'itens': 100,
                     'dataInicio': '1500-01-01',
@@ -30,7 +26,6 @@ module.exports = {
         }},
 
         { 'scrape': {
-            select: 'dados',
             schema: (scrape) => ({
                 idCamara: scrape('id').as.number()
             })

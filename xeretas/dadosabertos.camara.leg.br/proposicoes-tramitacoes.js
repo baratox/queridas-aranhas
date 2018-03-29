@@ -1,6 +1,6 @@
 'use strict';
 
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Proposicao } = require('../../model');
 
@@ -8,7 +8,7 @@ module.exports = {
     name: "Histórico das Proposições",
     describe: "Histórico de passos na tramitação de uma proposta.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 proposicoes: Proposicao.findAll({ attributes: ['idCamara'] })
@@ -18,16 +18,11 @@ module.exports = {
 
         { 'request': function() {
             return this.proposicoes.map(proposition => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/proposicoes/' + proposition + '/tramitacoes',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                }
+                url: '/proposicoes/' + proposition + '/tramitacoes'
             }))
         }},
 
         { 'scrape': {
-            select: 'dados'
         }}
     ])
 }

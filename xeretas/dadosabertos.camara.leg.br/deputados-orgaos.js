@@ -1,4 +1,4 @@
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Deputado } = require('../../model');
 
@@ -9,7 +9,7 @@ module.exports = {
               "o cargo ocupado pelo parlamentar neste órgão (como presidente, vice-presidente, "+
               "titular ou suplente) e as datas de início e fim da ocupação deste cargo.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 deputados: Deputado.findAll({ attributes: ['idCamara'] })
@@ -19,11 +19,7 @@ module.exports = {
 
         { 'request': function() {
             return this.deputados.map(deputy => ({
-                url: 'https://dadosabertos.camara.leg.br/api/v2/deputados/' + deputy + '/orgaos',
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Charset': 'utf-8'
-                },
+                url: '/deputados/' + deputy + '/orgaos',
                 qs: {
                     'itens': 100,
                     'dataInicio': '1500-01-01',
@@ -33,7 +29,6 @@ module.exports = {
         }},
 
         { 'scrape': {
-            select: 'dados',
         }}
     ])
 }

@@ -1,4 +1,4 @@
-const crawl = require('../crawl.js');
+const { crawler } = require('.');
 
 const { Legislatura } = require('../../model');
 
@@ -8,18 +8,15 @@ module.exports = {
               "da posse dos parlamentares após uma eleição e encerrados na " +
               "véspera da posse dos deputados seguintes.",
 
-    command: crawl.stepByStep([
+    command: crawler.stepByStep([
         { 'request': {
-            url: 'https://dadosabertos.camara.leg.br/api/v2/legislaturas?itens=100',
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Charset': 'utf-8'
+            url: '/legislaturas',
+            qs: {
+                'itens': 100
             }
         }},
 
         { 'scrape': {
-            select: 'dados',
-
             schema: (scrape) => ({
                 idCamara: scrape('id').as.number(),
                 uri: scrape('uri').as.text(),
