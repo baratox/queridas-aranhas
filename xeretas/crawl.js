@@ -1,18 +1,16 @@
 const request = require('request-promise-native');
 const RequestErrors = require('request-promise-native/errors');
 const S = require('string');
+const _ = require('lodash');
 
 const scraper = require('../util/scrape');
 
 const { writeText } = require('../util/json');
 const path = require('path');
 
-function Crawler(tricks = {}) {
+function Crawler(inheritedTricks = {}) {
     // Deep clone all tricks
-    tricks = Object.assign({}, tricks);
-    Object.keys(tricks).forEach(trick => {
-        tricks[trick] = Object.assign({}, tricks[trick]);
-    })
+    var tricks = _.cloneDeep(inheritedTricks);
 
     function trick(name, executor, defaults = {}) {
         if (arguments.length === 1) {
@@ -26,7 +24,8 @@ function Crawler(tricks = {}) {
             var trick = tricks[name];
             if (trick === undefined) {
                 trick = {
-                    'name': name
+                    'name': name,
+                    'defaults': {}
                 }
 
                 tricks[name] = trick;
@@ -34,17 +33,21 @@ function Crawler(tricks = {}) {
 
             // Sets or updates the executor function
             if (executor && typeof executor === 'function') {
-                trick['execute'] = function(context, options, resolution) {
-                    console.log("Executing trick", this.name);
+                trick['execute'] = function(context, options, resolution, overridenOptions) {
+                    // console.log("Executing trick", this.name, Object.keys(options));
                     if (typeof options === 'function') {
                         options = options.call(context, resolution);
                     }
 
+                    options = options ? options : {};
+
                     var instances = options.constructor === Array ? options : [options];
                     instances = instances.map(instanceOptions => {
                         // Apply default options to each execution
-                        instanceOptions = Object.assign({}, this.defaults, instanceOptions);
-                        return executor.apply(context, [instanceOptions, resolution]);
+                        instanceOptions = Object.assign({}, this.defaults, instanceOptions, overridenOptions);
+                        // console.log("Performing trick (keys:", JSON.stringify(Object.keys(instanceOptions)),
+                        //     "values:", JSON.stringify(instanceOptions));
+                        return executor.call(context, instanceOptions, resolution);
                     });
 
                     return instances.length === 1 ? instances[0] : instances;
@@ -61,7 +64,7 @@ function Crawler(tricks = {}) {
 
     // Returns a copy of this crawler with the given options applied as defaults to each step.
     function defaults(options) {
-        var clone = Crawler(tricks);
+        var clone = new Crawler(tricks);
         if (options && typeof options === 'object') {
             Object.keys(options).forEach(trick => {
                 // Updates defaults for each step that have a corresponding set
@@ -81,7 +84,7 @@ function Crawler(tricks = {}) {
      *    with two arguments: the value of the property and `resolution`.
      *    If the value is a function, it's evaluated before executing the trick.
      */
-    function takeStep(step, resolution) {
+    function takeStep(step, resolution, options) {
         this.history = (this.history ? this.history + '-->' : '')
             + (Math.random()*0xFF<<0).toString(16);
 
@@ -94,16 +97,15 @@ function Crawler(tricks = {}) {
         } else if (typeof step === 'object') {
             var keys = Object.keys(step);
             if (keys.length === 1) {
-                console.log("\nApplying trick '", keys[0], "' (", typeof resolution,
-                    ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
+                console.log("\nApplying trick '", keys[0], "' (",
+                    resolution && resolution.constructor ? resolution.constructor.name : typeof resolution,
+                    ") to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
 
-                var options = step[keys[0]];
                 var t = trick(keys[0]);
-                result = t.execute(this, options, resolution);
+                result = t.execute(this, step[keys[0]], resolution, options);
 
-                console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
-                    " to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
-
+                // console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
+                //     " to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
 
             } else {
                 throw TypeError("Invalid trick step object.");
@@ -114,51 +116,51 @@ function Crawler(tricks = {}) {
             throw TypeError("Steps must be either a 'function' or an 'object', not " + typeof step);
         }
 
-        if (result && result.constructor === Array) {
-            if (this.stepsTaken + 1 < this.steps.length) {
-                console.log("Following next step for each.");
-                result = result.map(n =>
-                    walkOneStep(Promise.resolve(n), this, this.stepsTaken + 1));
-            }
-
-            return Promise.all(result);
-
-        } else {
-            if (this.stepsTaken + 1 < this.steps.length) {
-                console.log("Following next step");
-                result = walkOneStep(Promise.resolve(result), this, this.stepsTaken + 1);
-            }
-
-            return Promise.resolve(result);
-        }
+        return result;
     }
 
-    function walkOneStep(promise, context, stepsTaken=0) {
-        // console.log("Walking after", promise);
-        return promise.then((result) => {
-            // console.log("Walking after ...", JSON.stringify(result));
+    function walkOneStep(context, step = 0, resolution, options) {
+        // console.log("Walking after ...", JSON.stringify(result));
+        context = Object.assign({}, context);
+        if (context.stepsTaken != step) {
+            context.step = {
+                'definition': context.steps[step],
+                // Repeat step and continue walking forward
+                'moonwalk': (opt) => {
+                    console.log("Moonwalk with", JSON.stringify(opt));
+                    return walkOneStep(context, step, resolution, opt)
+                },
+            }
+            context.stepsTaken = step;
+        }
+
+        if (resolution && resolution.constructor === Array) {
+            return Promise.all(resolution.map(res => {
+                return Promise.resolve(res).then(val =>
+                    walkOneStep(context, step, val, options)
+                )
+            }))
+        } else {
+            var result = takeStep.call(context, context.step.definition, resolution, options);
+
             if (result && result.constructor === Array) {
-                result = result.map(x => {
-                    if (x && x.constructor !== Promise) {
-                        return walkOneStep(Promise.resolve(x), context, stepsTaken);
-                    } else {
-                        return x;
-                    }
-                });
+                if (step + 1 < context.steps.length) {
+                    result = result.map(n =>
+                        Promise.resolve(n).then(r =>
+                            walkOneStep(context, step + 1, r)));
+                }
 
                 return Promise.all(result);
 
             } else {
-                context = Object.assign({}, context);
-                if (context.stepsTaken != stepsTaken) {
-                    context.step = context.steps[stepsTaken];
-                    context.stepsTaken = stepsTaken;
+                if (step + 1 < context.steps.length) {
+                    result = Promise.resolve(result).then(r =>
+                        walkOneStep(context, step + 1, r));
                 }
 
-                result = takeStep.call(context, context.step, result);
                 return Promise.resolve(result);
             }
-        });
+        }
     }
 
     function crawlStepByStep(steps) {
@@ -166,8 +168,7 @@ function Crawler(tricks = {}) {
         steps = steps.constructor == Array ? steps : [steps];
 
         var context = { 'steps': steps };
-        var promise = Promise.resolve();
-        return () => walkOneStep(promise, context);
+        return () => walkOneStep(context);
     }
 
     return {
@@ -187,10 +188,12 @@ var crawler = Crawler();
  */
 crawler.trick('set', function(fields, resolution) {
     var promises = [];
+    let context = this;
     Object.keys(fields).forEach(field => {
         promises.push(Promise.resolve(fields[field]).then((val) => {
+            console.log("Set context." + field);
             // Saves the evaluated field to current context.
-            this[field] = val;
+            context[field] = val;
         }));
     })
 
@@ -221,7 +224,7 @@ function makeRequest(options) {
             return error.response;
         } else {
             console.error("Request failed.", error);
-            return null;
+            throw error;
         }
     });
 }
@@ -240,38 +243,33 @@ crawler.trick('request', function(options, resolution) {
                             .filter((link) => link.match(/rel="next"/));
             if (links.length > 0) {
                 var next = new RegExp(/<(.*)>/).exec(links[0])[1];
-                // Repeat this 'request' step, only changing the url
-                var s = Object.assign({}, options, { 'url': next });
-                // s = Object.assign({}, context.step, { 'request': s });
-
-                var ctx = Object.assign({}, context);
-
                 return [
                     response,
-                    takeStep.call(ctx, s, ctx.stepsTaken)
-                ];
+                    // Repeat this 'request' step, only changing the url
+                    context.step.moonwalk({ 'url': next, 'baseUrl': null }),
+                ]
             }
         }
 
         return response;
     }
 
-    var promises = [];
     if (typeof options.url === 'string' || options.url instanceof String) {
-        promises.push(makeRequest(options).then(repeatRequestIfNextPage));
+        return makeRequest(options).then(repeatRequestIfNextPage);
 
     } else if (Array.isArray(options.url)) {
+        var promises = [];
         options.url.forEach((url) => {
             var urlRequest = Object.assign({}, options, { 'url': url });
             promises.push(
                 makeRequest(urlRequest).then(repeatRequestIfNextPage));
         })
+        return promises;
 
     } else {
-        throw Error("Invalid request URL:", options.url);
+        console.log("Invalid Options:", JSON.stringify(options));
+        throw Error("Missing request URL.");
     }
-
-    return promises;
 }, {
     'request': function(options) {
         console.info("GET", options.url, options ? '? ' + JSON.stringify(options) : '');
@@ -283,6 +281,8 @@ crawler.trick('request', function(options, resolution) {
 
 crawler.trick('scrape', function(options, response) {
     if (response.request === undefined) {
+        console.error("Invalid request before scrape at ", this.history,
+            typeof response, JSON.stringify(Object.keys(response)));
         throw new TypeError("Step 'scrape' must follow a 'request'.")
     }
 
