@@ -135,7 +135,7 @@ function Crawler(inheritedTricks = {}) {
                 'definition': context.steps[step],
                 // Repeat step and continue walking forward
                 'moonwalk': (opt) => {
-                    console.log("Moonwalk with", JSON.stringify(opt));
+                    if (DEBUG) { console.log("Moonwalk with", JSON.stringify(opt)); }
                     return walkOneStep(context, step, resolution, opt)
                 },
             }
@@ -176,9 +176,12 @@ function Crawler(inheritedTricks = {}) {
         steps = steps.constructor == Array ? steps : [steps];
 
         var context = { 'steps': steps };
-        return () => walkOneStep(context).catch(error => {
-            console.error("Crawler failed with", error.constructor ? error.constructor.name : typeof error);
-        });
+        return () => walkOneStep(context).then((result) => {
+                console.log("Crawler done with", typeof result === 'object' ?
+                    JSON.stringify(Object.keys(result)) : typeof result);
+            }).catch(error => {
+                console.error("Crawler failed with", error.constructor ? error.constructor.name : typeof error);
+            });
     }
 
     return {
@@ -201,7 +204,7 @@ crawler.trick('set', function(fields, resolution) {
     let context = this;
     Object.keys(fields).forEach(field => {
         promises.push(Promise.resolve(fields[field]).then((val) => {
-            console.log("Set context." + field);
+            if (DEBUG) { console.log("Set context." + field); }
             // Saves the evaluated field to current context.
             context[field] = val;
         }));
@@ -220,7 +223,7 @@ function dumpResponse(request, response) {
 
     writeText(response.body, filename);
 
-    console.debug("Reponse written to", filename);
+    if (DEBUG) { console.debug("Reponse written to", filename); }
 }
 
 function makeRequest(options) {
@@ -230,9 +233,11 @@ function makeRequest(options) {
     }).catch(error => {
         // TODO If it's a temporary problem, retry.
         if (error instanceof RequestErrors.StatusCodeError) {
-            console.error("Request failed with non 2xx status:", error.response.statusCode);
+            console.error("Unsucessful request (status", error.response.statusCode + ") to",
+                error.response.request.uri.href);
         } else {
-            console.error("Request failed with", error);
+            console.error("Request to", error.response.request.uri.href,
+                "failed with", error.message ? error.message : typeof error);
         }
 
         throw error;
@@ -296,7 +301,7 @@ crawler.trick('scrape', function(options, response) {
         throw new TypeError("Step 'scrape' must follow a 'request'.")
     }
 
-    console.debug("Scraping", response.request.uri.href);
+    if (DEBUG) { console.debug("Scraping", response.request.uri.href); }
 
     var configuredScraper = scraper;
     if (options.select) {
