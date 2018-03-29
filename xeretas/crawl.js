@@ -211,20 +211,19 @@ function dumpResponse(request, response) {
 }
 
 function makeRequest(options) {
-    console.info("GET", options.url, options ? '? ' + JSON.stringify(options) : '');
     return options.request(options).then(response => {
-            dumpResponse(options, response);
-            return response;
-        }).catch(error => {
-            // TODO If it's a temporary problem, retry.
-            if (error instanceof RequestErrors.StatusCodeError) {
-                console.error("Request failed with non 2xx status:", error.response.statusCode);
-                return error.response;
-            } else {
-                console.error("Request failed.", error);
-                return null;
-            }
-        });
+        dumpResponse(options, response);
+        return response;
+    }).catch(error => {
+        // TODO If it's a temporary problem, retry.
+        if (error instanceof RequestErrors.StatusCodeError) {
+            console.error("Request failed with non 2xx status:", error.response.statusCode);
+            return error.response;
+        } else {
+            console.error("Request failed.", error);
+            return null;
+        }
+    });
 }
 
 crawler.trick('request', function(options, resolution) {
@@ -274,9 +273,12 @@ crawler.trick('request', function(options, resolution) {
 
     return promises;
 }, {
-    'request': request,
+    'request': function(options) {
+        console.info("GET", options.url, options ? '? ' + JSON.stringify(options) : '');
+        return request(options);
+    },
     'resolveWithFullResponse': true,
-    'transform2xxOnly': true
+    'transform2xxOnly': true,
 });
 
 crawler.trick('scrape', function(options, response) {
