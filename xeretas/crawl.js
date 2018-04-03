@@ -128,6 +128,11 @@ function Crawler(inheritedTricks = {}) {
     }
 
     function walkOneStep(context, step = 0, resolution, options) {
+        if (_.isError(resolution)) {
+            context.error = resolution;
+            return context;
+        }
+
         // console.log("Walking after ...", JSON.stringify(result));
         context = Object.assign({}, context);
         if (context.stepsTaken != step) {
@@ -250,6 +255,8 @@ function makeRequest(context, options) {
         dumpResponse(options, response);
         return response;
     }).catch(error => {
+        context.error = error;
+
         // TODO If it's a temporary problem, retry.
         if (error instanceof RequestErrors.StatusCodeError) {
             console.error("Unsucessful request (status", error.response.statusCode + ") to",
@@ -261,7 +268,7 @@ function makeRequest(context, options) {
             console.error("Request failed with", error);
         }
 
-        throw error;
+        return error;
     });
 }
 
