@@ -38,7 +38,7 @@ module.exports = {
 
         { 'request': function(response) {
             return response.scraped.map(bloco => ({
-                url: '/orgaos/' + bloco.idCamara,
+                url: '/blocos/' + bloco.idCamara,
             }));
         }},
 
