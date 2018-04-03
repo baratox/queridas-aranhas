@@ -144,7 +144,7 @@ function speculateType(anything) {
                 length: anything.length
             }
 
-        } else if (anything.constructor === Number) {
+        } else if (!isNaN(anything) && anything !== '') {
             return {
                 type: 'number'
             }
@@ -207,12 +207,8 @@ function saw(spec, type, value) {
 
     if (type.format !== undefined) {
         if (seen.format === undefined) {
-            seen.format = type.format;
-        } else if (seen.format.constructor === String) {
-            if (seen.format != type.format) {
-                seen.format = new Set([seen.format, type.format]);
-            }
-        } else if (seen.format.constructor === Set) {
+            seen.format = new Set([type.format]);
+        } else {
             seen.format.add(type.format);
         }
     }
