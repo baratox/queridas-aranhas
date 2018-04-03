@@ -132,6 +132,7 @@ function Crawler(inheritedTricks = {}) {
         context = Object.assign({}, context);
         if (context.stepsTaken != step) {
             context.step = {
+                'index': step,
                 'definition': context.steps[step],
                 // Repeat step and continue walking forward
                 'moonwalk': (opt) => {
@@ -176,11 +177,15 @@ function Crawler(inheritedTricks = {}) {
         steps = steps.constructor == Array ? steps : [steps];
 
         var context = { 'steps': steps };
+        context.root = context;
         return () => walkOneStep(context).then((result) => {
                 console.log("Crawler done with", typeof result === 'object' ?
                     JSON.stringify(Object.keys(result)) : typeof result);
+                return context;
             }).catch(error => {
                 console.error("Crawler failed with", error.constructor ? error.constructor.name : typeof error);
+                context.error = error;
+                return context;
             });
     }
 
@@ -226,8 +231,22 @@ function dumpResponse(request, response) {
     if (DEBUG) { console.debug("Reponse written to", filename); }
 }
 
-function makeRequest(options) {
+function saveResponseToContext(context, response) {
+    var root = context.root;
+    if (root.responses === undefined) {
+        root.responses = new Map()
+    }
+
+    if (!root.responses.has(context.step.index)) {
+        root.responses.set(context.step.index, [response])
+    } else {
+        root.responses.get(context.step.index).push(response)
+    }
+}
+
+function makeRequest(context, options) {
     return options.request(options).then(response => {
+        saveResponseToContext(context, response);
         dumpResponse(options, response);
         return response;
     }).catch(error => {
@@ -235,9 +254,11 @@ function makeRequest(options) {
         if (error instanceof RequestErrors.StatusCodeError) {
             console.error("Unsucessful request (status", error.response.statusCode + ") to",
                 error.response.request.uri.href);
+        } else if (error instanceof RequestErrors.RequestError) {
+            console.error("Request to", error.response ? error.response.request.uri.href : '(?)',
+                "failed with", error.message);
         } else {
-            console.error("Request to", error.response.request.uri.href,
-                "failed with", error.message ? error.message : typeof error);
+            console.error("Request failed with", error);
         }
 
         throw error;
@@ -270,14 +291,14 @@ crawler.trick('request', function(options, resolution) {
     }
 
     if (typeof options.url === 'string' || options.url instanceof String) {
-        return makeRequest(options).then(repeatRequestIfNextPage);
+        return makeRequest(context, options).then(repeatRequestIfNextPage);
 
     } else if (Array.isArray(options.url)) {
         var promises = [];
         options.url.forEach((url) => {
             var urlRequest = Object.assign({}, options, { 'url': url });
             promises.push(
-                makeRequest(urlRequest).then(repeatRequestIfNextPage));
+                makeRequest(context, urlRequest).then(repeatRequestIfNextPage));
         })
         return promises;
 

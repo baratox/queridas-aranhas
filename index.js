@@ -23,32 +23,45 @@ program.version('1')
                     "mundo da política através dos dados disponíveis.");
     });
 
+function crawl(name, then = undefined) {
+    if (!name) { name = "" }
+
+    // Matches any .js, in any subdirectory of "name".
+    glob.sync(name + '{,*.js}', {
+        cwd: path.join(__dirname, '/xeretas/'),
+        nodir: true,
+        matchBase:true
+    }).forEach(function(x) {
+        console.log("[", x, "]");
+        var crawler = require(path.join(__dirname, '/xeretas/', x));
+        if (crawler.command) {
+            console.info("Scheduling", crawler.name);
+            // Schedule as a rate-limitted job
+            if (then) {
+                limiter.schedule(() => crawler.command().then(
+                    (context) => then(crawler, context)))
+            } else {
+                limiter.schedule(crawler.command);
+            }
+
+        } else if (typeof crawler === 'function') {
+            // Run as a function
+            if (then) {
+                limiter.schedule(() => crawler().then(
+                    (context) => then(crawler, context)))
+            } else {
+                limiter.schedule(crawler);
+            }
+        }
+    })
+}
+
 program.command('xeretem [alvo]').alias('x')
     .description("Executa um xereta ou todos os xeretas, se [alvo] for um diretório.\n" +
                  "Se não especificado, todos são executados.")
     .action(function(alvo, options){
         try {
-            if (!alvo) { alvo = "" };
-            // Matches any .js, in any subdirectory of "alvo".
-            glob.sync(alvo + '{,*.js}', {
-                cwd: path.join(__dirname, '/xeretas/'),
-                nodir: true,
-                matchBase:true
-            }).forEach(function(x) {
-                console.log("[", x, "]");
-                var crawler = require(path.join(__dirname, '/xeretas/', x));
-                if (crawler.command) {
-                    console.info("Scheduling", crawler.name);
-                    // Schedule as a rate-limitted job
-                    limiter.schedule(crawler.command);
-
-                } else if (typeof crawler === 'function') {
-                    // Run as a function
-                    crawler();
-                }
-            });
-
-            return limiter;
+            return crawl(alvo);
 
         } catch(error) {
             console.error(error);
@@ -61,6 +74,37 @@ program.command('xeretem [alvo]').alias('x')
         console.log('    $ queridas x camara');
         console.log();
     });
+
+program.command('descrevam [alvo]').alias('d')
+    .description("Descreve as ações de um ou mais xeretas.")
+    .action(function(alvo, options){
+        try {
+            return crawl(alvo, (crawler, context) => {
+                if (!context.error) {
+                    if (context.responses) {
+                        for (let step of context.responses.entries()) {
+                            console.log("Crawler", crawler.name, "did", step[1].length,
+                                "requests for step", step[0]);
+                        }
+                    }
+
+                } else {
+                    console.log("Crawler", crawler.name, "failed with:", context.error);
+                }
+            });
+
+        } catch(error) {
+            console.error(error);
+        }
+
+    }).on('--help', function() {
+        console.log('  Examplos:');
+        console.log();
+        console.log('    $ queridas x camara.leg.br/passaportes');
+        console.log('    $ queridas x camara');
+        console.log();
+    });
+
 
 program.command('db:sync')
     .description("Cria as tabelas no banco de dados, de acordo com o modelo.")
