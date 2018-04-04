@@ -1,4 +1,4 @@
-const crawl = require('../crawl.js');
+const crawl = require('../../util/crawl.js');
 
 const { Deputado, Partido } = require('../../model');
 
