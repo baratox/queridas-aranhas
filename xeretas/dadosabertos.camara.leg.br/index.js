@@ -3,7 +3,7 @@
 const Bottleneck = require("bottleneck");
 const request = require('request-promise-native');
 
-const crawler = require('../../util/crawl.js');
+const crawler = require('../../util/crawler.js');
 
 const { Termo } = require('../../model');
 
