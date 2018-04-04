@@ -129,18 +129,21 @@ function Crawler(inheritedTricks = {}) {
 
         // console.log("Walking after ...", JSON.stringify(result));
         context = Object.assign({}, context);
-        if (context.stepsTaken != step) {
-            context.step = {
-                'index': step,
-                'definition': context.steps[step],
-                // Repeat step and continue walking forward
-                'moonwalk': (opt) => {
-                    if (DEBUG) { console.log("Moonwalk with", JSON.stringify(opt)); }
+        context.step = {
+            'index': step,
+            'definition': context.steps[step],
+            // Repeat step and continue walking forward
+            'moonwalk': (opt) => {
+                if (DEBUG) { console.log("Moonwalk with", JSON.stringify(opt)); }
+                if (!_.isArray(resolution)) {
                     return walkOneStep(context, step, resolution, opt)
-                },
-            }
-            context.stepsTaken = step;
+                } else {
+                    console.warn("Can't moonwalk with array resolution.");
+                    return Promise.resolve();
+                }
+            },
         }
+        context.stepsTaken = step;
 
         if (resolution && resolution.constructor === Array) {
             return Promise.all(resolution.map(res => {
