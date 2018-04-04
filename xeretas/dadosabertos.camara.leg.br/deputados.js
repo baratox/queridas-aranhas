@@ -11,21 +11,19 @@ module.exports = {
               "partido obtém para cada legislatura.",
 
     command: crawler.stepByStep([
-        { 'set': function() {
-            return {
-                legislaturas: Legislatura.findAll({ attributes: ['idCamara'] })
-                                         .map(l => l.get('idCamara'))
-            }
-        }},
+        function() {
+            return Legislatura.findAll({ attributes: ['idCamara'] })
+                              .map(l => l.get('idCamara'))
+        },
 
-        { 'request': function() {
-            return this.legislaturas.map(l => ({
-                url: '/deputados/',
+        { 'request': function(legislatura) {
+            this.legislatura = legislatura;
+            return {
+                url: '/deputados/?idLegislatura=' + legislatura,
                 qs: {
-                    'idLegislatura': l,
                     'itens': 100
                 }
-            }));
+            }
         }},
 
         { 'scrape': {

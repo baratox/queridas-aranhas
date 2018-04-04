@@ -13,21 +13,20 @@ module.exports = {
               "partidos, se associados, formam um novo bloco.",
 
      command: crawler.stepByStep([
-        { 'set': function() {
-            return {
-                legislaturas: Legislatura.findAll({ attributes: ['idCamara'] })
-                                         .map(l => l.get('idCamara'))
-            }
-        }},
+        function() {
+            return Legislatura.findAll({ attributes: ['idCamara'] })
+                              .map(l => l.get('idCamara'))
+        },
 
-        { 'request': function() {
-            return this.legislaturas.map(l => ({
-                url: '/blocos/',
+        { 'request': function(legislatura) {
+            this.legislatura = legislatura;
+            return {
+                // Send parameter in the Url to avoid issues with pagination
+                url: '/blocos/?idLegislatura=' + legislatura,
                 qs: {
-                    'idLegislatura': l,
                     'itens': 100
                 }
-            }));
+            };
         }},
 
         { 'scrape': {
