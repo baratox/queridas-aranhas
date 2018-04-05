@@ -13,5 +13,5 @@ Crie um contêiner no Docker com:
 
 Execute o aplicativo ou qualquer outro comando dentro do contêiner:
 
-    $ docker-compose run xeretas xereta x
-    $ docker-compose run xeretas bash
+    $ docker-compose run queridas aranhas --help
+    $ docker-compose run queridas bash

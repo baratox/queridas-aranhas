@@ -11,7 +11,7 @@ ENV PATH "$PATH:./node_modules/.bin/"
 
 VOLUME /usr/queridas
 
-RUN echo '#!/bin/bash\n/usr/local/bin/node /usr/queridas/index.js $*' > /usr/local/bin/queridas && \
-    chmod +x /usr/local/bin/queridas
+RUN echo '#!/bin/bash\n/usr/local/bin/node /usr/queridas/index.js $*' > /usr/local/bin/aranhas && \
+    chmod +x /usr/local/bin/aranhas
 
-CMD ["/usr/local/bin/queridas", "--help"]
+CMD ["/usr/local/bin/aranhas", "--help"]

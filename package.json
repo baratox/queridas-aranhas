@@ -1,7 +1,7 @@
 {
-  "name": "queridas",
-  "version": "0.1.0",
-  "description": "Programinha que ama bisbilhotar a vida política...",
+  "name": "queridas-aranhas",
+  "version": "0.0.1",
+  "description": "Um grupo de aranhas que amam bisbilhotar a vida política no Brasil.",
   "main": "queridas.js",
   "dependencies": {
     "array-flatten": "^2.1.1",
