@@ -9,20 +9,28 @@ module.exports = {
     describe: "Relacionamento entre proposições.",
 
     command: crawler.stepByStep([
-        { 'set': function() {
+        function() {
+            return Proposicao.findAll({ attributes: ['idCamara'] })
+                             .map(p => p.get('idCamara'))
+        },
+
+        { 'request': function(proposicao) {
+            this.proposicao = proposicao
             return {
-                proposicoes: Proposicao.findAll({ attributes: ['idCamara'] })
-                                       .map(p => p.get('idCamara'))
+                url: '/proposicoes/' + proposicao + '/relacionadas'
             }
         }},
 
-        { 'request': function() {
-            return this.proposicoes.map(proposition => ({
-                url: '/proposicoes/' + proposition + '/relacionadas'
-            }))
-        }},
-
         { 'scrape': {
-        }}
+            schema: (scrape) => ({
+                idCamara: scrape('id').as.number(),
+                uri: scrape('uri').as.text(),
+                siglaTipo: scrape('siglaTipo').as.text(),
+                idTipo: scrape('idTipo').as.number(),
+                numero: scrape('numero').as.number(),
+                ano: scrape('ano').as.number(),
+                ementa: scrape('ementa').as.text(),
+            }),
+        }},
     ])
 }

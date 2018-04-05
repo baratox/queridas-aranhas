@@ -10,25 +10,32 @@ module.exports = {
               "titular ou suplente) e as datas de início e fim da ocupação deste cargo.",
 
     command: crawler.stepByStep([
-        { 'set': function() {
-            return {
-                deputados: Deputado.findAll({ attributes: ['idCamara'] })
-                                   .map(d => d.get('idCamara'))
-            }
-        }},
+        function() {
+            return Deputado.findAll({ attributes: ['idCamara'] })
+                           .map(d => d.get('idCamara'))
+        },
 
-        { 'request': function() {
-            return this.deputados.map(deputy => ({
-                url: '/deputados/' + deputy + '/orgaos',
+        { 'request': function(deputado) {
+            this.deputado = deputado
+            return {
+                url: '/deputados/' + deputado + '/orgaos',
                 qs: {
                     'itens': 100,
                     'dataInicio': '1500-01-01',
                     'ordenarPor': 'idOrgao'
                 }
-            }))
+            }
         }},
 
         { 'scrape': {
+            schema: (scrape) => ({
+                idOrgao: scrape('idOrgao').as.number(),
+                siglaOrgao: scrape('siglaOrgao').as.text(),
+                nomeOrgao: scrape('nomeOrgao').as.text(),
+                nomePapel: scrape('nomePapel').as.text(),
+                dataInicio: scrape('dataInicio').as.date('YYYY-MM-DD'),
+                dataFim: scrape('dataFim').as.date('YYYY-MM-DD'),
+            }),
         }}
     ])
 }

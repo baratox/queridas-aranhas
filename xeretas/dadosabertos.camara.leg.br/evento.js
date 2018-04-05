@@ -30,8 +30,21 @@ module.exports = {
 
         { 'scrape': {
             schema: (scrape) => ({
-                idCamara: scrape('id').as.number()
-            })
+                idCamara: scrape('id').as.number(),
+                uri: scrape('uri').as.text(),
+                dataHoraInicio: scrape('dataHoraInicio').as.date('YYYY-MM-DDTHH:mm'),
+                dataHoraFim: scrape('dataHoraFim').as.date('YYYY-MM-DDTHH:mm'),
+                descricaoSituacao: scrape('descricaoSituacao').as.text(),
+                descricaoTipo: scrape('descricaoTipo').as.text(),
+                titulo: scrape('titulo').as.text(),
+                localExterno: null,
+                localCamara: scrape('localCamara').as((scrape) => ({
+                    nome: scrape('nome').as.text(),
+                    predio: null,
+                    sala: null,
+                    andar: null,
+                })),
+            }),
         }},
 
         { 'request': function(response) {
@@ -44,25 +57,26 @@ module.exports = {
             return {
                 schema: (scrape) => ({
                     idCamara: scrape('id').as.number(),
+                    uriDeputados: null,
+                    uriConvidados: null,
                     uri: scrape('uri').as.text(),
-                    inicio: scrape('dataHoraInicio').as.date('YYYY/MM/DD/HH/mm'),
-                    fim: scrape('dataHoraFim').as.date('YYYY/MM/DD/HH/mm'),
+                    fases: null,
+                    dataHoraInicio: scrape('dataHoraInicio').as.date('YYYY-MM-DD HH:mm:ss'),
+                    dataHoraFim: scrape('dataHoraFim').as.date('YYYY-MM-DD HH:mm:ss'),
+                    descricaoSituacao: scrape('descricaoSituacao').as.text(),
+                    descricaoTipo: scrape('descricaoTipo').as.text(),
                     situacao: scrape('descricaoSituacao').as.mapped(this.situacoesEvento),
                     tipo: scrape('descricaoTipo').as.mapped(this.tiposEvento),
                     titulo: scrape('titulo').as.text(),
-                    // localExterno: ?
-                    orgaos: scrape('orgaos.id').as.number(),
+                    localExterno: null,
                     localCamara: scrape('localCamara').as((scrape) => ({
                         nome: scrape('nome').as.text(),
-                        predio: scrape('predio').as.text(),
-                        andar: scrape('andar').as.text(),
-                        sala: scrape('sala').as.text(),
-                    }))
-                })
+                        predio: null,
+                        sala: null,
+                        andar: null,
+                    })),
+                }),
             }
         }},
-
-        { 'createOrUpdate': {
-        }}
     ])
 }

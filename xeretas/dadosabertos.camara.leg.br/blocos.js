@@ -31,7 +31,10 @@ module.exports = {
 
         { 'scrape': {
             schema: (scrape) => ({
-                idCamara: scrape('id').as.number()
+                idCamara: scrape('id').as.number(),
+                uri: scrape('uri').as.text(),
+                nome: scrape('nome').as.text(),
+                idLegislatura: scrape('idLegislatura').as.number(),
             })
         }},
 
@@ -42,6 +45,12 @@ module.exports = {
         }},
 
         { 'scrape': {
+            schema: (scrape) => ({
+                idCamara: scrape('id').as.number(),
+                uri: scrape('uri').as.text(),
+                nome: scrape('nome').as.text(),
+                idLegislatura: scrape('idLegislatura').as.number(),
+            })
         }}
     ])
 }

@@ -7,22 +7,21 @@ module.exports = {
     describe: "Membros do órgão legislativo.",
 
     command: crawler.stepByStep([
-        { 'set': function() {
-            return {
-                orgaos: Orgao.findAll({ attributes: ['idCamara'] })
-                             .map(d => d.get('idCamara'))
-            }
-        }},
+        function() {
+            return Orgao.findAll({ attributes: ['idCamara'] })
+                        .map(o => o.get('idCamara'))
+        },
 
-        { 'request': function() {
-            return this.orgaos.map(orgao => ({
-                url: '/orgaos/' + orgao + '/eventos',
+        // Todas as requisições falham com status 500.
+        { 'request': function(orgao) {
+            this.orgao = orgao
+            return {
+                url: '/orgaos/' + orgao + '/membros',
                 qs: {
                     'itens': 100,
                     'dataInicio': '1500-01-01',
-                    'ordenarPor': 'dataHoraInicio'
                 }
-            }))
+            }
         }},
 
         { 'scrape': {
@@ -30,7 +29,5 @@ module.exports = {
                 idCamara: scrape('id').as.number()
             })
         }},
-
-        // Associa Evento ao Órgão (ambos já carregados)
     ])
 }
