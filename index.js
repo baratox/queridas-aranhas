@@ -175,7 +175,7 @@ function printSchemaAsCode(schema, comment = false, indent = '') {
         if (nDate > 0) {
             if (comment) console.log(indent + '    ' + '// Seen date', nDate, 'times')
             console.log(indent + '    ' + f + ':', "scrape('" + f + "').as.date('" +
-                _.get(schema, [f, '#seen', 'date', 'format', '0'], '') + "'),")
+                _.get(schema, [f, '#seen', 'date', 'format'], new Set('')).values().next().value + "'),")
         }
 
         if (nObject) {
