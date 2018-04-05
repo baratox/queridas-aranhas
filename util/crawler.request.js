@@ -37,14 +37,24 @@ module.exports = crawler.trick('request', function(options, resolution) {
     }
 
     if (typeof options.url === 'string' || options.url instanceof String) {
-        return makeRequest(context, options).then(repeatRequestIfNextPage);
+        var req = makeRequest(context, options)
+        if (options.requestNextPage) {
+            return req.then(repeatRequestIfNextPage)
+        } else {
+            return req
+        }
 
     } else if (Array.isArray(options.url)) {
         var promises = [];
         options.url.forEach((url) => {
-            var urlRequest = Object.assign({}, options, { 'url': url });
-            promises.push(
-                makeRequest(context, urlRequest).then(repeatRequestIfNextPage));
+            var urlRequest = Object.assign({}, options, { 'url': url })
+
+            var req = makeRequest(context, urlRequest)
+            if (options.requestNextPage) {
+                req = req.then(repeatRequestIfNextPage)
+            }
+
+            promises.push(req)
         })
         return promises;
 
@@ -53,12 +63,14 @@ module.exports = crawler.trick('request', function(options, resolution) {
         throw Error("Missing request URL.");
     }
 }, {
+    'requestNextPage': true,
+    'saveResponseToContext': true,
+    'saveResponseToDisk': true,
+    'resolveWithFullResponse': true,
     'request': function(options) {
         console.info("GET", options.url, options ? '? ' + JSON.stringify(options) : '');
         return request(options);
     },
-    'resolveWithFullResponse': true,
-    'transform2xxOnly': true,
 });
 
 function dumpResponse(request, response) {
@@ -87,11 +99,25 @@ function saveResponseToContext(context, response) {
 }
 
 function makeRequest(context, options) {
-    return options.request(options).then(response => {
-        saveResponseToContext(context, response);
-        dumpResponse(options, response);
-        return response;
-    }).catch(error => {
+    var request = options.request || request;
+
+    request = request(options);
+
+    if (options.saveResponseToContext) {
+        request = request.then(response => {
+            saveResponseToContext(context, response)
+            return response
+        })
+    }
+
+    if (options.saveResponseToDisk) {
+        request = request.then(response => {
+            dumpResponse(options, response)
+            return response
+        })
+    }
+
+    return request.catch(error => {
         context.error = error;
 
         // TODO If it's a temporary problem, retry.
