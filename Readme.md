@@ -1,4 +1,4 @@
-# Xereta
+# Queridas Aranhas
 
 ## Desenvolvimento
 
