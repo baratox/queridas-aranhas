@@ -130,7 +130,7 @@ function speculateType(anything) {
     }
 
 
-    if (anything === null) {
+    if (anything === null || anything.constructor === String && anything.length == 0) {
         return { type: 'null' };
 
     } else if (anything === undefined) {
