@@ -76,9 +76,9 @@ module.exports = crawler.trick('request', function(options, resolution) {
 function dumpResponse(request, response) {
     // Save the raw response to the disk
     var filename = S(request.url).chompLeft('https://')
-        .chompLeft('http://').replaceAll('/', '_').replaceAll(':', '');
+        .chompLeft('http://').replaceAll(/[\?\/:=]/g, '_');
 
-    filename = path.join('data/responses/', filename.s);
+    filename = path.join('/usr/queridas/data/responses/', filename.s);
 
     writeText(response.body, filename);
 
