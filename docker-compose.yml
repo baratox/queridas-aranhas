@@ -6,8 +6,9 @@ services:
         # So, install node dependencies again before serving.
         command: bash -c "npm install && aranhas --help"
         volumes:
-            - '../memoria-politica/:/usr/memoria-politica/'
             - ./:/usr/queridas/
+            # Gambiarra to avoid duplicated schema source files for now...
+            - ../memoria-politica/model/:/usr/queridas/model/
         links:
             - db
         environment:
@@ -22,4 +23,6 @@ services:
         ports:
             - 5433:5432
         volumes:
-            - /var/lib/postgresql/data/fatos/
+            - fatos:/var/lib/postgresql/data/fatos/
+volumes:
+    fatos:

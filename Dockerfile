@@ -9,7 +9,7 @@ WORKDIR /usr/queridas
 # RUN npm install
 
 # To execute local commands like `gulp`.
-ENV PATH "$PATH:./node_modules/.bin/"
+ENV PATH "$PATH:/usr/queridas/node_modules/.bin/"
 
 VOLUME /usr/queridas
 
