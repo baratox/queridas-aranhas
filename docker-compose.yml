@@ -2,7 +2,11 @@ version: '2'
 services:
     queridas:
         build: .
+        # The volume below overrides the COPY commands from the Dockerfile.
+        # So, install node dependencies again before serving.
+        command: bash -c "npm install && aranhas --help"
         volumes:
+            - '../memoria-politica/:/usr/memoria-politica/'
             - ./:/usr/queridas/
         links:
             - db
@@ -16,6 +20,6 @@ services:
             PGDATA: /var/lib/postgresql/data/fatos/
             POSTGRES_PASSWORD: must be changed.
         ports:
-            - 5432:5432
+            - 5433:5432
         volumes:
             - /var/lib/postgresql/data/fatos/

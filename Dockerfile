@@ -2,9 +2,11 @@ FROM node:9.3.0
 
 WORKDIR /usr/queridas
 
-# Install dependencies during build to benefit from cache.
-COPY package.json package-lock.json ./
-RUN npm install
+# Install dependencies during docker-compose build instead.
+# Package requires local package ../memoria-politica/
+#
+# COPY package.json package-lock.json ./
+# RUN npm install
 
 # To execute local commands like `gulp`.
 ENV PATH "$PATH:./node_modules/.bin/"

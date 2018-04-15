@@ -1,6 +1,6 @@
 const { crawler } = require('.');
 
-const { Legislatura } = require('../../model');
+const { Legislatura } = require('memoria-politica/model');
 
 module.exports = {
     name: "Legislatura",

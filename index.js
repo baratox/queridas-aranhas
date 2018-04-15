@@ -5,7 +5,7 @@ const _ = require('lodash');
 
 const Bottleneck = require("bottleneck");
 
-const model = require('./model');
+const model = require('memoria-politica/model');
 
 const limiter = new Bottleneck({
     maxConcurrent: 1,
