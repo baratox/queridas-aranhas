@@ -4,10 +4,9 @@ const _ = require('lodash');
 const Bottleneck = require("bottleneck");
 const request = require('request-promise-native');
 
-const crawler = require('../../util/crawler.js');
+const crawler = require.main.require('./util/crawler.js');
 
-const { Termo } = require('memoria-politica/model');
-
+const { Termo } = require.main.require('./model');
 
 // Limits concurrent requests to avoid DoS'ing the already slow official servers.
 const limiter = new Bottleneck({

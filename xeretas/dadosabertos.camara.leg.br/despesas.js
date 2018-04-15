@@ -2,7 +2,7 @@ const flatten = require('array-flatten');
 
 const { crawler } = require('.');
 
-const { Legislatura, Deputado } = require('../../model');
+const { Legislatura, Deputado } = require.main.require('./model');
 
 module.exports = {
     name: "Despesas dos Deputados",

@@ -1,6 +1,6 @@
 const { crawler, lookupReferenceEnum } = require('.');
 
-const { Termo } = require('../../model');
+const { Termo } = require.main.require('./model');
 
 module.exports = {
     name: "Evento",

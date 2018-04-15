@@ -1,5 +1,5 @@
 const { crawler } = require('.');
-const { Termo } = require('../../model');
+const { Termo } = require.main.require('./model');
 
 module.exports = {
     name: "Referência",

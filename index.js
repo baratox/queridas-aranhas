@@ -5,7 +5,8 @@ const _ = require('lodash');
 
 const Bottleneck = require("bottleneck");
 
-const model = require('memoria-politica/model');
+// Mounted by docker-compose, from memoria-politica
+const model = require.main.require('./model');
 
 const limiter = new Bottleneck({
     maxConcurrent: 1,

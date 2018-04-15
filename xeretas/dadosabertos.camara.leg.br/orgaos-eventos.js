@@ -1,6 +1,6 @@
 const { crawler } = require('.');
 
-const { Orgao } = require('../../model');
+const { Orgao } = require.main.require('./model');
 
 module.exports = {
     name: "Eventos Relacionados aos Órgãos",

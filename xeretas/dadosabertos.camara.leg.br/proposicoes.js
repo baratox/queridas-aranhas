@@ -1,6 +1,6 @@
 const { crawler } = require('.');
 
-const { Proposicao } = require('../../model');
+const { Proposicao } = require.main.require('./model');
 
 module.exports = {
     name: "Proposições",

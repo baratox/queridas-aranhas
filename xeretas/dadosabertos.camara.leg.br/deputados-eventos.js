@@ -1,6 +1,6 @@
 const { crawler } = require('.');
 
-const { Deputado } = require('../../model');
+const { Deputado } = require.main.require('./model');
 
 module.exports = {
     name: "Participação dos Deputados em Eventos",
