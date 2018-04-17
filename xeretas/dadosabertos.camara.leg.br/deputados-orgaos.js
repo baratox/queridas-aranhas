@@ -8,7 +8,7 @@ module.exports = {
               "ou participou durante um intervalo de tempo. Cada item identifica o órgão, " +
               "o cargo ocupado pelo parlamentar neste órgão (como presidente, vice-presidente, "+
               "titular ou suplente) e as datas de início e fim da ocupação deste cargo.",
-
+    weight: 500,
     command: crawler.stepByStep([
         function() {
             return Deputado.findAll({ attributes: ['idCamara'] })

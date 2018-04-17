@@ -5,7 +5,7 @@ const { Partido, Legislatura } = require.main.require('./model');
 module.exports = {
     name: "Partidos",
     describe: "Partidos políticos que têm ou já tiveram deputados na Câmara.",
-
+    weight: 250,
     command: crawler.stepByStep([
         { 'set': function() {
             return {

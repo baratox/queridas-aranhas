@@ -8,7 +8,7 @@ module.exports = {
     name: "Despesas dos Deputados",
     describe: "Registros de pagamentos e reembolsos feitos pela Câmara em prol " +
               "do deputado, a título da chamada 'cota parlamentar'.",
-
+    weight: 500,
     command: crawler.stepByStep([
         { 'set': function() {
             return {

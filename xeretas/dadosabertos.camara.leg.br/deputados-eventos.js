@@ -5,7 +5,7 @@ const { Deputado } = require.main.require('./model');
 module.exports = {
     name: "Participação dos Deputados em Eventos",
     describe: "Eventos nos quais a participação do deputado era ou é prevista.",
-
+    weight: 500,
     command: crawler.stepByStep([
         function() {
             return Deputado.findAll({ attributes: ['idCamara'] })

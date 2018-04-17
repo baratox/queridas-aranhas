@@ -10,7 +10,7 @@ module.exports = {
               "lugares do país, entre outros. Além dos deputados integrantes dos órgãos " +
               "que promovem esses eventos, também podem participar autoridades e " +
               "representantes de empresas e instituições da sociedade.",
-
+    weight: 250,
     command: crawler.stepByStep([
         { 'set': function() {
             return {

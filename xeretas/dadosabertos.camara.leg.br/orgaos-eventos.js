@@ -5,7 +5,7 @@ const { Orgao } = require.main.require('./model');
 module.exports = {
     name: "Eventos Relacionados aos Órgãos",
     describe: "Informações resumidas dos eventos ocorridos ou previstos no órgão legislativo.",
-
+    weight: 500,
     command: crawler.stepByStep([
         function() {
             return Orgao.findAll({ attributes: ['idCamara'] })

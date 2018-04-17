@@ -10,8 +10,8 @@ module.exports = {
               "organiza os trabalhos e participa da administração de recursos da Câmara, " +
               "procuradorias, conselhos e o próprio Plenário, integrado por todos os " +
               "deputados e órgão supremo das decisões da casa.",
-
-     command: crawler.stepByStep([
+    weight: 250,
+    command: crawler.stepByStep([
         { 'set': function() {
             return {
                 tiposOrgao: lookupReferenceEnum('tiposOrgao')

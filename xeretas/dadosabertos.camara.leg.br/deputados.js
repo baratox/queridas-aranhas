@@ -9,7 +9,7 @@ module.exports = {
               "de votos recebidos nas eleições determinam se eles serão titulares " +
               "ou suplentes no exercício dos mandatos, que são as vagas que um " +
               "partido obtém para cada legislatura.",
-
+    weight: 250,
     command: crawler.stepByStep([
         function() {
             return Legislatura.findAll({ attributes: ['idCamara'] })

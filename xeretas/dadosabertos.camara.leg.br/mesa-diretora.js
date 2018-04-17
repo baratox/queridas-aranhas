@@ -5,7 +5,7 @@ const { Legislatura } = require.main.require('./model');
 module.exports = {
     name: "Mesa Diretora",
     describe: "Quais deputados fizeram parte da Mesa Diretora em uma legislatura.",
-
+    weight: 250,
     command: crawler.stepByStep([
         function() {
             return Legislatura.findAll({ attributes: ['idCamara'] })

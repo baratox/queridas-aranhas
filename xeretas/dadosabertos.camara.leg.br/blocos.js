@@ -11,8 +11,8 @@ module.exports = {
               "com um só líder e um mesmo conjunto de vice-líderes. Os blocos só podem existir " +
               "até o fim da legislatura em que foram criados: na legislatura seguinte, os mesmos " +
               "partidos, se associados, formam um novo bloco.",
-
-     command: crawler.stepByStep([
+    weight: 250,
+    command: crawler.stepByStep([
         function() {
             return Legislatura.findAll({ attributes: ['idCamara'] })
                               .map(l => l.get('idCamara'))

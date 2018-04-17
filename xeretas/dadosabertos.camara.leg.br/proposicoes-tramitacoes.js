@@ -7,7 +7,7 @@ const { Proposicao } = require.main.require('./model');
 module.exports = {
     name: "Histórico das Proposições",
     describe: "Histórico de passos na tramitação de uma proposta.",
-
+    weight: 500,
     command: crawler.stepByStep([
         function() {
             return Proposicao.findAll({ attributes: ['idCamara'] })

@@ -28,7 +28,7 @@ var requester = request.defaults({
 module.exports.crawler = crawler.defaults({
     'request': {
         'request': limiter.wrap(function(options) {
-            console.info("GET", options.url, options ? '? ' + JSON.stringify(options) : '');
+            console.info("    HTTP GET", options.url, options.qs ? '? ' + JSON.stringify(options.qs) : '');
             return requester(options);
         })
     },

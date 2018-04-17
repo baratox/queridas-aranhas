@@ -7,7 +7,7 @@ module.exports = {
     describe: "São os períodos de trabalhos legislativos, iniciados no dia " +
               "da posse dos parlamentares após uma eleição e encerrados na " +
               "véspera da posse dos deputados seguintes.",
-
+    weight: 125,
     command: crawler.stepByStep([
         { 'request': {
             url: '/legislaturas',

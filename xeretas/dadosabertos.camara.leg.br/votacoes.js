@@ -8,7 +8,7 @@ module.exports = {
     name: "Votações",
     describe: "Detalhes sobre cada votação, como o relator, o encaminhamento dado como " +
               "consequência da votação e as orientações das bancadas.",
-
+    weight: 1000,
     command: crawler.stepByStep([
         function() {
             return Votacao.findAll({ attributes: ['idCamara'] })

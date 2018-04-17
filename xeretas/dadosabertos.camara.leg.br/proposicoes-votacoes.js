@@ -7,7 +7,7 @@ const { Proposicao, Votacao } = require.main.require('./model');
 module.exports = {
     name: "Votações da Proposição",
     describe: "As votações por quais uma proposição já passou.",
-
+    weight: 500,
     command: crawler.stepByStep([
         function() {
             return Proposicao.findAll({ attributes: ['idCamara'] })

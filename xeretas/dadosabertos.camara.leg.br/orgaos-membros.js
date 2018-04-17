@@ -5,7 +5,7 @@ const { Orgao } = require.main.require('./model');
 module.exports = {
     name: "Membros dos Órgãos",
     describe: "Membros do órgão legislativo.",
-
+    weight: 500,
     command: crawler.stepByStep([
         function() {
             return Orgao.findAll({ attributes: ['idCamara'] })

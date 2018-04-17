@@ -6,7 +6,7 @@ module.exports = {
     describe: "Referências para siglas e conjuntos predeterminados de valores usados na " +
               "classificação de tipos de proposições, situações de andamento de eventos, " +
               "etc.",
-
+    weight: 125,
     command: crawler.stepByStep([
         { 'request': {
             url: [

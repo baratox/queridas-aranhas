@@ -7,7 +7,7 @@ const { Proposicao } = require.main.require('./model');
 module.exports = {
     name: "Proposições Relacionadas",
     describe: "Relacionamento entre proposições.",
-
+    weight: 500,
     command: crawler.stepByStep([
         function() {
             return Proposicao.findAll({ attributes: ['idCamara'] })

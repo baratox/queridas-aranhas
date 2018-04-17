@@ -7,7 +7,7 @@ const { Votacao } = require.main.require('./model');
 module.exports = {
     name: "Votos",
     describe: "Votos de cada deputado nas votações.",
-
+    weight: 2500,
     command: crawler.stepByStep([
         function() {
             return Votacao.findAll({ attributes: ['idCamara'] })

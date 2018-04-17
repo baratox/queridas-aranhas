@@ -7,7 +7,7 @@ module.exports = {
     describe: "Lista de informações básicas sobre projetos de lei, requerimentos, " +
               "medidas provisórias, emendas, pareceres e todos os outros tipos de " +
               "proposições na Câmara.",
-
+    weight: 250,
     command: crawler.stepByStep([
         { 'request': function(legislatura) {
             return {
