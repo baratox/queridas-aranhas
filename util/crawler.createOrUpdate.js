@@ -22,33 +22,61 @@ module.exports = crawler.trick('createOrUpdate', function(options, response) {
     if (scraped.constructor === Array) {
         var promises = [];
         scraped.forEach((record, i) => {
+            var promise = undefined;
             try {
-                promises.push(options.promiseTo(options, response, record));
+                promise = options.promiseTo(options, response, record);
             } catch(error) {
-                promises.push(Promise.resolve(error));
+                promise = Promise.reject(error);
+            }
+
+            if (promise) {
+                // Resolve with error instead of rejecting
+                promise = promise.then(result => {
+                    if (_.isError(result)) {
+                        throw result;
+                    } else {
+                        return result;
+                    }
+                }).catch(error => error);
+
+                promises.push(promise);
             }
         });
 
         return Promise.all(promises);
 
     } else if (typeof scraped == 'object') {
+        var promise;
         try {
-            return options.promiseTo(options, response, scraped)
+            promise = options.promiseTo(options, response, scraped)
         } catch(error) {
-            return Promise.resolve(error);
+            promise = Promise.reject(error);
         }
+
+        return promise.then(result => {
+            if (_.isError(result)) {
+                throw result;
+            } else {
+                return result;
+            }
+        }).catch(error => error);
     }
 }, {
     'promiseTo': function (options, response, record) {
-        if (!options.findOrCreate) {
-            throw Error("Option 'findOrCreate' is required.");
-        }
+        try {
+            if (!options.findOrCreate) {
+                throw Error("Option 'findOrCreate' is required.");
+            }
 
-        if (typeof options.extendRecord == 'function') {
-            Object.assign(record, options.extendRecord(record, response));
-        }
+            if (typeof options.extendRecord == 'function') {
+                Object.assign(record, options.extendRecord(record, response));
+            }
 
-        return findAndUpdateOrCreate(options.findOrCreate, record);
+            return findAndUpdateOrCreate(options.findOrCreate, record);
+
+        } catch(error) {
+            return Promise.reject(error);
+        }
     },
     'extendRecord': null,
     'findOrCreate': null,
@@ -56,10 +84,9 @@ module.exports = crawler.trick('createOrUpdate', function(options, response) {
 
 function findAndUpdateOrCreate(findOrCreate, record) {
     var promise = findOrCreate(record);
-
     if (promise == null) {
         console.warn("Crawler findOrCreate returned null.");
-        return Promise.reject();
+        promise = Promise.reject();
     }
 
     return promise.then(([object, created, updatedRecord]) => {
