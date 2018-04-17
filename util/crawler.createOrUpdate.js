@@ -48,18 +48,10 @@ module.exports = crawler.trick('createOrUpdate', function(options, response) {
             Object.assign(record, options.extendRecord(record, response));
         }
 
-        var promise = findAndUpdateOrCreate(options.findOrCreate, record);
-
-        // Chain all options.spread in sequence.
-        if (typeof options.spread == 'function') {
-            promise = promise.then(options.spread);
-        }
-
-        return promise;
+        return findAndUpdateOrCreate(options.findOrCreate, record);
     },
     'extendRecord': null,
     'findOrCreate': null,
-    'spread': null
 });
 
 function findAndUpdateOrCreate(findOrCreate, record) {
