@@ -113,7 +113,7 @@ function crawl(name = "") {
     return runAllAsync(tasks);
 }
 
-function verbose(crawler) {
+function verbose(crawlers) {
     // So that JSON.stringify will print Error types
     if (!('toJSON' in Error.prototype))
     Object.defineProperty(Error.prototype, 'toJSON', {
@@ -128,7 +128,7 @@ function verbose(crawler) {
         writable: true
     });
 
-    console.debug(JSON.stringify(crawler, 5, 3));
+    console.debug(JSON.stringify(crawlers, 5, 3));
 }
 
 program.command('xeretem [alvo]').alias('x')
@@ -147,12 +147,11 @@ program.command('xeretem [alvo]').alias('x')
 
             setTimeout(() => { process.exit(0); }, 3000);
         }).catch(function(crawler) {
-            console.error("Execution failed for", crawler.name);
             if (options.verbose) {
                 verbose(crawler);
             }
 
-            console.info("Will exit after 3s.");
+            console.info("Execution failed. Will exit after 3s.");
             setTimeout(() => { process.exit(-1); }, 3000);
         });
 
