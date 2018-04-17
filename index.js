@@ -113,38 +113,45 @@ function crawl(name = "") {
     return runAllAsync(tasks);
 }
 
+function verbose(crawler) {
+    // So that JSON.stringify will print Error types
+    if (!('toJSON' in Error.prototype))
+    Object.defineProperty(Error.prototype, 'toJSON', {
+        value: function () {
+            var alt = {};
+            Object.getOwnPropertyNames(this).forEach(function (key) {
+                alt[key] = this[key];
+            }, this);
+            return alt;
+        },
+        configurable: true,
+        writable: true
+    });
+
+    console.debug(JSON.stringify(crawler, 5, 3));
+}
+
 program.command('xeretem [alvo]').alias('x')
     .description("Executa um xereta ou todos os xeretas, se [alvo] for um diretório.\n" +
                  "Se não especificado, todos são executados.")
     .option('-v, --verbose', "Põe na roda tudo o que se passa.")
     .action(function(alvo, options){
         return crawl(alvo).then(function(crawler) {
+            if (options.verbose) {
+                console.info("Final context for", _.get(crawler, 'name', 'anonymous'));
+                verbose(crawler);
+            }
+
             console.info("All jobs should have finished. Will exit in 3s.");
             console.info("Any activity log below this line indicates an error.");
-
-            if (options.verbose) {
-                // So that JSON.stringify will print Error types
-                if (!('toJSON' in Error.prototype))
-                Object.defineProperty(Error.prototype, 'toJSON', {
-                    value: function () {
-                        var alt = {};
-                        Object.getOwnPropertyNames(this).forEach(function (key) {
-                            alt[key] = this[key];
-                        }, this);
-                        return alt;
-                    },
-                    configurable: true,
-                    writable: true
-                });
-
-                console.info("Final context for", _.get(crawler, 'name', 'anonymous'));
-                console.debug(JSON.stringify(crawler, 5, 3));
-            }
 
             setTimeout(() => { process.exit(0); }, 3000);
         }).catch(function(crawler) {
             console.error("Execution failed for", crawler.name);
-            console.error(crawler.error);
+            if (options.verbose) {
+                verbose(crawler);
+            }
+
             console.info("Will exit after 3s.");
             setTimeout(() => { process.exit(-1); }, 3000);
         });
