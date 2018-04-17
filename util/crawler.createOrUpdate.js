@@ -63,23 +63,16 @@ function findAndUpdateOrCreate(findOrCreate, record) {
     }
 
     return promise.then(([object, created, updatedRecord]) => {
-            if (updatedRecord) {
-                record = updatedRecord;
-            }
+        if (updatedRecord) {
+            record = updatedRecord;
+        }
 
-            if (created) {
-                // console.debug("Created", object.constructor.name, object.id);
-                return [object, record, created];
-            } else {
-                return object.update(record).then(
-                    (updated) => {
-                        // console.debug("Updated", updated.constructor.name, updated.id,
-                        //     "with the latest data.");
-                        return [updated, record, created];
-                    }
-                );
-            }
-        // }).catch(err => {
-        //     console.error("Failed to Create or Update:", err.name, err.message);
-        });
+        if (created) {
+            return { created: true, instance: object, attributes: record }
+        } else {
+            return object.update(record).then((updatedObject) => {
+                return { updated: true, instance: updatedObject, attributes: record }
+            })
+        }
+    });
 }
