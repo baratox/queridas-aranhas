@@ -123,6 +123,7 @@ function Crawler(inheritedTricks = {}) {
 
     function walkOneStep(context, step = 0, resolution, options) {
         if (_.isError(resolution)) {
+            console.error("Error resolution", resolution.name);
             context.error = resolution;
             return context;
         }
@@ -180,15 +181,7 @@ function Crawler(inheritedTricks = {}) {
 
         var context = { 'steps': steps };
         context.root = context;
-        return () => walkOneStep(context).then((result) => {
-                console.log("Crawler done with", typeof result === 'object' ?
-                    JSON.stringify(Object.keys(result)) : typeof result);
-                return context;
-            }).catch(error => {
-                console.error("Crawler failed with", error.constructor ? error.constructor.name : typeof error);
-                context.error = error;
-                return context;
-            });
+        return () => walkOneStep(context);
     }
 
     return {

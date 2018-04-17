@@ -68,7 +68,7 @@ module.exports = crawler.trick('request', function(options, resolution) {
     'saveResponseToDisk': true,
     'resolveWithFullResponse': true,
     'request': function(options) {
-        console.info("GET", options.url, options ? '? ' + JSON.stringify(options) : '');
+        console.info("    HTTP GET", options.url, options.qs ? '? ' + JSON.stringify(options.qs) : '');
         return request(options);
     },
 });

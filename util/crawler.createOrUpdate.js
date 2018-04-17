@@ -22,22 +22,21 @@ module.exports = crawler.trick('createOrUpdate', function(options, response) {
     if (scraped.constructor === Array) {
         var promises = [];
         scraped.forEach((record, i) => {
-            promises.push(options.promiseTo(options, response, record)
-                .catch((error) => {
-                    console.error("Error:", error, "\n  record:", JSON.toString(record));
-                    return Promise.resolve();
-                })
-            );
+            try {
+                promises.push(options.promiseTo(options, response, record));
+            } catch(error) {
+                promises.push(Promise.resolve(error));
+            }
         });
 
         return Promise.all(promises);
 
     } else if (typeof scraped == 'object') {
-        return options.promiseTo(options, response, scraped)
-            .catch((error) => {
-                console.error("Error:", error);
-                return Promise.resolve();
-            });
+        try {
+            return options.promiseTo(options, response, scraped)
+        } catch(error) {
+            return Promise.resolve(error);
+        }
     }
 }, {
     'promiseTo': function (options, response, record) {
@@ -77,18 +76,18 @@ function findAndUpdateOrCreate(findOrCreate, record) {
             }
 
             if (created) {
-                console.debug("Created", object.constructor.name, object.id);
-                return [object, record];
+                // console.debug("Created", object.constructor.name, object.id);
+                return [object, record, created];
             } else {
                 return object.update(record).then(
                     (updated) => {
-                        console.debug("Updated", updated.constructor.name, updated.id,
-                            "with the latest data.");
-                        return [updated, record];
+                        // console.debug("Updated", updated.constructor.name, updated.id,
+                        //     "with the latest data.");
+                        return [updated, record, created];
                     }
                 );
             }
-        }).catch(err => {
-            console.error("Failed to Create or Update.", err);
+        // }).catch(err => {
+        //     console.error("Failed to Create or Update:", err.name, err.message);
         });
 }

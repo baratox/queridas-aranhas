@@ -16,8 +16,9 @@ function jsonSelect(json, selector) {
             if (selected.hasOwnProperty(s)) {
                 selected = selected[s];
             } else {
-                throw Error("Unmatched selector: '" + s + "' in:" +
-                    JSON.stringify(selected))
+                // throw Error("Unmatched selector: '" + s + "' in:" +
+                //     JSON.stringify(selected))
+                return undefined;
             }
 
         } else {
@@ -25,8 +26,9 @@ function jsonSelect(json, selector) {
                 if (selected[j].hasOwnProperty(s)) {
                     selected[j] = selected[j][s];
                 } else {
-                    throw Error("Unmatched selector: '" + s + "' in: " +
-                        JSON.stringify(selected[j]))
+                    // throw Error("Unmatched selector: '" + s + "' in: " +
+                    //     JSON.stringify(selected[j]))
+                    return undefined;
                 }
             }
         }

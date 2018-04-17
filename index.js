@@ -3,21 +3,8 @@ const glob = require('glob');
 const path = require('path');
 const _ = require('lodash');
 
-const Bottleneck = require("bottleneck");
-
 // Mounted by docker-compose, from memoria-politica
 const model = require.main.require('./model');
-
-const limiter = new Bottleneck({
-    maxConcurrent: 1,
-    minTime: 5000
-}).on('error', function(error) {
-    console.error("Job failed.", error);
-}).on('idle', function() {
-    console.info("All jobs should have finished. Will exit in 3s.");
-    console.info("Any activity log below this line indicates an error.");
-    setTimeout(() => { process.exit(0); }, 3000);
-});
 
 program.version('1')
     .action(function(env){
@@ -25,55 +12,148 @@ program.version('1')
                     "mundo da política através dos dados disponíveis.");
     });
 
-function crawl(name, then = undefined) {
-    if (!name) { name = "" }
+
+
+function runAsync(crawler) {
+    var promise = Promise.resolve();
+    if (crawler.command) {
+        // console.info("Starting crawler", crawler.name);
+        promise = promise.then(crawler.command);
+
+    } else if (typeof crawler === 'function') {
+        // console.info("Starting function", crawler.name);
+        promise = promise.then(crawler);
+
+    } else {
+        promise = Promise.reject(new TypeError(
+            "Unsupporte crawler type " +
+            _.get(crawler, 'name', '(no .name attribute).')
+        ));
+    }
+
+    promise = promise.then(result => {
+        crawler.result = result;
+        crawler.successful = 0;
+        crawler.failed = 0;
+
+        if (_.isArray(result)) {
+            _.flatten(result).forEach(r => {
+                if (_.isError(r)) {
+                    crawler.failed++;
+                } else {
+                    crawler.successful++;
+                }
+            });
+        } else {
+            crawler.successful = 1;
+        }
+
+        console.info("[x]", crawler.name, "done:", crawler.successful, "operations succeded,",
+                     crawler.failed, "failed.");
+
+        return Promise.resolve(crawler);
+    }).catch(error => {
+        crawler.successful = 0;
+        crawler.error = error;
+        console.error("[x]", crawler.name, "failed:", error.name);
+        return Promise.resolve(crawler);
+    }).then(crawler => {
+        if (crawler.successful) {
+            return Promise.resolve(crawler);
+        } else {
+            return Promise.reject(crawler);
+        }
+    });
+
+    return promise;
+}
+
+function runAllAsync(tasks) {
+    var promises = Promise.resolve();
+    var orderedWeights = _.sortBy(Array.from(tasks.keys()));
+    orderedWeights.forEach((weight, i) => {
+        var crawlers = tasks.get(weight);
+
+        console.log(" " + String.fromCharCode(65 + i) + ".", "Found",
+                    crawlers.length, "crawler(s) at", weight);
+        crawlers.forEach(crawler => console.log("    -", crawler.name));
+
+        promises = promises.then(function() {
+            console.log("\n---------------");
+            console.log(" " + String.fromCharCode(65 + i) + ".", "Starting",
+                        crawlers.length, "crawler(s) at", weight);
+            return Promise.all(crawlers.map(crawler => runAsync(crawler)));
+        });
+    });
+
+    return promises;
+}
+
+function crawl(name = "") {
+    var tasks = new Map();
 
     // Matches any .js, in any subdirectory of "name".
     glob.sync(name + '{,*.js}', {
         cwd: path.join(__dirname, '/xeretas/'),
         nodir: true,
-        matchBase:true
+        matchBase:true,
+        ignore: ['*/index.js'],
     }).forEach(function(x) {
-        console.log("[", x, "]");
         var crawler = require(path.join(__dirname, '/xeretas/', x));
-        if (crawler.command) {
-            console.info("Scheduling", crawler.name);
-            // Schedule as a rate-limitted job
-            if (then) {
-                limiter.schedule(() => crawler.command().then(
-                    (context) => then(crawler, context)))
-            } else {
-                limiter.schedule(crawler.command);
-            }
+        var weight = _.get(crawler, 'weight', 0);
 
-        } else if (typeof crawler === 'function') {
-            // Run as a function
-            if (then) {
-                limiter.schedule(() => crawler().then(
-                    (context) => then(crawler, context)))
-            } else {
-                limiter.schedule(crawler);
-            }
+        if (!tasks.has(weight)) {
+            tasks.set(weight, []);
         }
-    })
+
+        // Tasks with same weight run in parallel
+        tasks.get(weight).push(crawler);
+    });
+
+    return runAllAsync(tasks);
 }
 
 program.command('xeretem [alvo]').alias('x')
     .description("Executa um xereta ou todos os xeretas, se [alvo] for um diretório.\n" +
                  "Se não especificado, todos são executados.")
+    .option('-v, --verbose', "Põe na roda tudo o que se passa.")
     .action(function(alvo, options){
-        try {
-            return crawl(alvo);
+        return crawl(alvo).then(function(crawler) {
+            console.info("All jobs should have finished. Will exit in 3s.");
+            console.info("Any activity log below this line indicates an error.");
 
-        } catch(error) {
-            console.error(error);
-        }
+            if (options.verbose) {
+                // So that JSON.stringify will print Error types
+                if (!('toJSON' in Error.prototype))
+                Object.defineProperty(Error.prototype, 'toJSON', {
+                    value: function () {
+                        var alt = {};
+                        Object.getOwnPropertyNames(this).forEach(function (key) {
+                            alt[key] = this[key];
+                        }, this);
+                        return alt;
+                    },
+                    configurable: true,
+                    writable: true
+                });
+
+                console.info("Final context for", _.get(crawler, 'name', 'anonymous'));
+                console.debug(JSON.stringify(crawler, 5, 3));
+            }
+
+            setTimeout(() => { process.exit(0); }, 3000);
+        }).catch(function(crawler) {
+            console.error("Execution failed for", crawler.name);
+            console.error(crawler.error);
+            console.info("Will exit after 3s.");
+            setTimeout(() => { process.exit(-1); }, 3000);
+        });
 
     }).on('--help', function() {
         console.log('  Examplos:');
         console.log();
-        console.log('    $ queridas x camara.leg.br/passaportes');
-        console.log('    $ queridas x camara');
+        console.log('    $ aranhas x camara.leg.br/passaportes');
+        console.log('    $ aranhas x camara');
         console.log();
     });
 
