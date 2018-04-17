@@ -84,47 +84,67 @@ function Crawler(inheritedTricks = {}) {
         this.history = (this.history ? this.history + '-->' : '')
             + (Math.random()*0xFF<<0).toString(16);
 
-        var result;
-        if (typeof step === 'function') {
-            if (DEBUG) {
-                console.log("\nApplying function ", step.name, "(", typeof resolution,
-                    ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
-            }
-            result = step.call(this, resolution);
-
-        } else if (typeof step === 'object') {
-            var keys = Object.keys(step);
-            if (keys.length === 1) {
+        let result = undefined;
+        try {
+            if (typeof step === 'function') {
                 if (DEBUG) {
-                    console.log("\nApplying trick '", keys[0], "' (",
-                        resolution && resolution.constructor ? resolution.constructor.name : typeof resolution,
-                        ") to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                    console.log("\nApplying function ", step.name, "(", typeof resolution,
+                        ") to\n    context:", "(" + this.stepsTaken + ")", this.history, Object.keys(this));
                 }
+                result = step.call(this, resolution);
 
-                var t = trick(keys[0]);
-                result = t.execute(this, step[keys[0]], resolution, options);
+            } else if (typeof step === 'object') {
+                var keys = Object.keys(step);
+                if (keys.length === 1) {
+                    if (DEBUG) {
+                        console.log("\nApplying trick '", keys[0], "' (",
+                            resolution && resolution.constructor ? resolution.constructor.name : typeof resolution,
+                            ") to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                    }
 
-                if (DEBUG) {
-                    console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
-                        " to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                    var t = trick(keys[0]);
+                    result = t.execute(this, step[keys[0]], resolution, options);
+
+                    if (DEBUG) {
+                        console.log("\nTrick '", keys[0], "' returned:", result.constructor.name ,
+                            " to\n- context:", "(" + this.stepsTaken + ")", this.history, JSON.stringify(Object.keys(this)));
+                    }
+
+                } else {
+                    throw TypeError("Invalid trick step object.");
                 }
 
             } else {
-                throw TypeError("Invalid trick step object.");
+                console.log(this);
+                throw TypeError("Steps must be either a 'function' or an 'object', not " + typeof step);
             }
 
-        } else {
-            console.log(this);
-            throw TypeError("Steps must be either a 'function' or an 'object', not " + typeof step);
+        } catch(error) {
+            result = error;
         }
 
-        return result;
+        let context = this;
+        if (result !== undefined) {
+            result = Promise.resolve(result).catch(error => error);
+        } else {
+            result = Promise.resolve(new Error("Step didn't complete."));
+        }
+
+        return result.then(finalResult => {
+            if (_.isError(finalResult)) {
+                context.alive = false;
+                context.error = finalResult;
+            } else {
+                context.alive = true;
+            }
+
+            return finalResult;
+        });
     }
 
     function walkOneStep(context, step = 0, resolution, options) {
-        if (_.isError(resolution)) {
+        if (!_.get(context, 'alive', true)) {
             console.error("Error resolution", resolution.name);
-            context.error = resolution;
             return context;
         }
 
