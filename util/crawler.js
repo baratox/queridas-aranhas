@@ -166,7 +166,7 @@ function Crawler(inheritedTricks = {}) {
         }
         context.stepsTaken = step;
 
-        if (resolution && resolution.constructor === Array) {
+        if (resolution && _.isArray(resolution)) {
             return Promise.all(resolution.map(res => {
                 return Promise.resolve(res).then(val =>
                     walkOneStep(context, step, val, options)

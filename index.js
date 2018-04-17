@@ -68,7 +68,7 @@ function runAsync(crawler) {
     return promise;
 }
 
-function runAllAsync(tasks) {
+function runAllAsync(tasks, maxWeight = Infinity) {
     var promises = Promise.resolve();
     var orderedWeights = _.sortBy(Array.from(tasks.keys()));
     orderedWeights.forEach((weight, i) => {
@@ -89,7 +89,8 @@ function runAllAsync(tasks) {
     return promises;
 }
 
-function crawl(name = "") {
+function crawl(name, maxWeight = Infinity) {
+    name = name || '';
     var tasks = new Map();
 
     // Matches any .js, in any subdirectory of "name".
@@ -102,15 +103,17 @@ function crawl(name = "") {
         var crawler = require(path.join(__dirname, '/xeretas/', x));
         var weight = _.get(crawler, 'weight', 0);
 
-        if (!tasks.has(weight)) {
-            tasks.set(weight, []);
-        }
+        if (weight <= maxWeight) {
+            if (!tasks.has(weight)) {
+                tasks.set(weight, []);
+            }
 
-        // Tasks with same weight run in parallel
-        tasks.get(weight).push(crawler);
+            // Tasks with same weight run in parallel
+            tasks.get(weight).push(crawler);
+        }
     });
 
-    return runAllAsync(tasks);
+    return tasks.size ? runAllAsync(tasks) : Promise.resolve([]);
 }
 
 function verbose(crawlers) {
@@ -128,27 +131,32 @@ function verbose(crawlers) {
         writable: true
     });
 
-    console.debug(JSON.stringify(crawlers, 5, 3));
+    crawlers.forEach(crawler => {
+        console.info("Crawler", _.get(crawler, 'name', 'anonymous'), "finished with:",
+            JSON.stringify(_.pick(crawler, ['successful', 'failed'])))
+        console.debug(JSON.stringify(_.flatten(_.get(crawler, 'result', 'undefined')), 5, 3));
+    })
 }
 
 program.command('xeretem [alvo]').alias('x')
     .description("Executa um xereta ou todos os xeretas, se [alvo] for um diretório.\n" +
                  "Se não especificado, todos são executados.")
     .option('-v, --verbose', "Põe na roda tudo o que se passa.")
+    .option('-m, --max-weight [peso]', "Encontra somente aranhas com peso menor ou igual ao parâmetro.")
     .action(function(alvo, options){
-        return crawl(alvo).then(function(crawler) {
-            if (options.verbose) {
-                console.info("Final context for", _.get(crawler, 'name', 'anonymous'));
-                verbose(crawler);
+        return crawl(alvo, options.maxWeight).then(function(crawlers) {
+            if (options.verbose && crawlers.length) {
+                console.info("Final context for crawlers:");
+                verbose(crawlers);
             }
 
             console.info("All jobs should have finished. Will exit in 3s.");
             console.info("Any activity log below this line indicates an error.");
 
             setTimeout(() => { process.exit(0); }, 3000);
-        }).catch(function(crawler) {
+        }).catch(function(crawlers) {
             if (options.verbose) {
-                verbose(crawler);
+                verbose(crawlers);
             }
 
             console.info("Execution failed. Will exit after 3s.");
