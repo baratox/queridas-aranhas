@@ -62,7 +62,7 @@ function runAsync(crawler) {
     return promise;
 }
 
-function runAllAsync(tasks, maxWeight = Infinity) {
+function runAllAsync(tasks, afterRunAsync = null) {
     var promises = Promise.resolve();
     var orderedWeights = _.sortBy(Array.from(tasks.keys()));
     orderedWeights.forEach((weight, i) => {
@@ -76,14 +76,20 @@ function runAllAsync(tasks, maxWeight = Infinity) {
             console.log("\n---------------");
             console.log(" " + String.fromCharCode(65 + i) + ".", "Starting",
                         crawlers.length, "crawler(s) at", weight);
-            return Promise.all(crawlers.map(crawler => runAsync(crawler)));
+            return Promise.all(crawlers.map(crawler => {
+                if (afterRunAsync) {
+                    return runAsync(crawler).then(afterRunAsync)
+                } else {
+                    return runAsync(crawler)
+                }
+            }));
         });
     });
 
     return promises;
 }
 
-function crawl(name, maxWeight = Infinity) {
+function crawl(name, maxWeight = Infinity, printResult = false) {
     name = name || '';
     var tasks = new Map();
 
@@ -107,7 +113,22 @@ function crawl(name, maxWeight = Infinity) {
         }
     });
 
-    return tasks.size ? runAllAsync(tasks) : Promise.resolve([]);
+    if (tasks.size > 0) {
+        if (printResult) {
+            var printCrawlerResult = function(crawler) {
+                console.debug("------------- - --- -- - --- -- -  -");
+                console.info("Final context for crawler", crawler.name);
+                verbose(crawler);
+            }
+
+            return runAllAsync(tasks, printCrawlerResult);
+        } else {
+            return runAllAsync(tasks);
+        }
+    } else {
+        return Promise.resolve([]);
+    }
+
 }
 
 function verbose(crawlers) {
@@ -127,9 +148,13 @@ function verbose(crawlers) {
 
     crawlers = _.isArray(crawlers) ? crawlers : [crawlers];
     crawlers.forEach(crawler => {
-        console.info("Crawler", _.get(crawler, 'name', 'anonymous'), "finished with:",
-            JSON.stringify(_.pick(crawler, ['successful', 'failed'])))
-        console.debug(JSON.stringify(_.flatten(_.get(crawler, 'result', 'undefined')), 5, 3));
+        if (_.isError(crawler)) {
+            console.error("Crawler failed:", crawler.name, crawler.message);
+        } else {
+            console.info("Crawler", _.get(crawler, 'name', 'anonymous'), "finished with:",
+                JSON.stringify(_.pick(crawler, ['successful', 'failed'])))
+            console.debug(JSON.stringify(_.flatten(_.get(crawler, 'result', 'undefined')), 5, 3));
+        }
     })
 }
 
@@ -139,12 +164,7 @@ program.command('xeretem [alvo]').alias('x')
     .option('-v, --verbose', "Põe na roda tudo o que se passa.")
     .option('-m, --max-weight [peso]', "Encontra somente aranhas com peso menor ou igual ao parâmetro.")
     .action(function(alvo, options){
-        return crawl(alvo, options.maxWeight).then(function(crawlers) {
-            if (options.verbose && crawlers.length) {
-                console.info("Final context for crawlers:");
-                verbose(crawlers);
-            }
-
+        return crawl(alvo, options.maxWeight, options.verbose).then(function(crawlers) {
             console.info("All jobs should have finished. Will exit in 3s.");
             console.info("Any activity log below this line indicates an error.");
 
