@@ -144,8 +144,10 @@ function Crawler(inheritedTricks = {}) {
 
     function walkOneStep(context, step = 0, resolution, options) {
         if (!_.get(context, 'alive', true)) {
-            console.error("Error resolution", resolution.name);
-            return context;
+            if (DEBUG) {
+                console.error("Previous step resolved to an Error:", resolution.message);
+            }
+            return resolution;
         }
 
         // console.log("Walking after ...", JSON.stringify(result));

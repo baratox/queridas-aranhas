@@ -36,17 +36,17 @@ function runAsync(crawler) {
         crawler.successful = 0;
         crawler.failed = 0;
 
-        if (_.isArray(result)) {
-            _.flatten(result).forEach(r => {
-                if (_.isError(r)) {
-                    crawler.failed++;
-                } else {
-                    crawler.successful++;
-                }
-            });
-        } else {
-            crawler.successful = 1;
+        if (!_.isArray(result)) {
+            result = [result];
         }
+
+        _.flatten(result).forEach(r => {
+            if (_.isError(r)) {
+                crawler.failed++;
+            } else {
+                crawler.successful++;
+            }
+        });
 
         console.info("[x]", crawler.name, "done:", crawler.successful, "operations succeded,",
                      crawler.failed, "failed.");
@@ -55,14 +55,8 @@ function runAsync(crawler) {
     }).catch(error => {
         crawler.successful = 0;
         crawler.error = error;
-        console.error("[x]", crawler.name, "failed:", error.name);
+        console.error("[x]", crawler.name, "failed:", error.name, ":", error.message);
         return Promise.resolve(crawler);
-    }).then(crawler => {
-        if (crawler.successful) {
-            return Promise.resolve(crawler);
-        } else {
-            return Promise.reject(crawler);
-        }
     });
 
     return promise;
@@ -131,6 +125,7 @@ function verbose(crawlers) {
         writable: true
     });
 
+    crawlers = _.isArray(crawlers) ? crawlers : [crawlers];
     crawlers.forEach(crawler => {
         console.info("Crawler", _.get(crawler, 'name', 'anonymous'), "finished with:",
             JSON.stringify(_.pick(crawler, ['successful', 'failed'])))

@@ -8,6 +8,10 @@ const scraper = require('./scrape.js');
 const DEBUG = process.env.DEBUG == 1 || false;
 
 module.exports = crawler.trick('scrape', function(options, response) {
+    if (_.isError(response)) {
+        throw response;
+    }
+
     if (response.request === undefined) {
         console.error("Invalid request before scrape at ", this.history,
             typeof response, JSON.stringify(Object.keys(response)));
