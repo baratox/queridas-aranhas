@@ -94,7 +94,7 @@ function crawl(name, maxWeight = Infinity, printResult = false) {
     var tasks = new Map();
 
     // Matches any .js, in any subdirectory of "name".
-    glob.sync(name + '{,*.js}', {
+    glob.sync('**/' + name + '{,*.js,**/*.js}', {
         cwd: path.join(__dirname, '/xeretas/'),
         nodir: true,
         matchBase:true,
