@@ -36,6 +36,10 @@ module.exports = crawler.trick('request', function(options, resolution) {
         return response;
     }
 
+    // if (Math.floor(Math.random() * Math.floor(10)) % 3 == 0) {
+    //     return Promise.resolve(new Error("That's an odd Request, Sir"));
+    // }
+
     if (typeof options.url === 'string' || options.url instanceof String) {
         var req = makeRequest(context, options)
         if (options.requestNextPage) {

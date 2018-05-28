@@ -25,6 +25,14 @@ module.exports = crawler.trick('createOrUpdate', function(options, response) {
             var promise = undefined;
             try {
                 promise = options.promiseTo(options, response, record);
+
+                // if (i < 3) {
+                //     if (i % 2 === 0) {
+                //         promise = Promise.reject(new Error("That's Odd"));
+                //     } else {
+                //         promise = options.promiseTo(options, response, record);
+                //     }
+                // }
             } catch(error) {
                 promise = Promise.reject(error);
             }
