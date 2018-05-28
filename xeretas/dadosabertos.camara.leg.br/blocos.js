@@ -2,7 +2,7 @@
 
 const { crawler } = require('.');
 
-const { Legislatura } = require.main.require('./model');
+const { Legislatura } = require('memoria-politica-model');
 
 module.exports = {
     name: "Bloco Partidário",

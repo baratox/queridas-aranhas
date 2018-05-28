@@ -6,7 +6,7 @@ const request = require('request-promise-native');
 
 const crawler = require.main.require('./util/crawler.js');
 
-const { Termo } = require.main.require('./model');
+const { Termo } = require('memoria-politica-model');
 
 // Limits concurrent requests to avoid DoS'ing the already slow official servers.
 const limiter = new Bottleneck({

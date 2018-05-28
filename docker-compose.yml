@@ -7,8 +7,7 @@ services:
         command: bash -c "npm install && aranhas --help"
         volumes:
             - ./:/usr/queridas/
-            # Gambiarra to avoid duplicated schema source files for now...
-            - ../memoria-politica/model/:/usr/queridas/model/
+            - ../memoria-politica-model/:/usr/memoria-politica-model
         links:
             - db
         environment:

@@ -1,6 +1,6 @@
 const { crawler } = require('.');
 
-const { Orgao } = require.main.require('./model');
+const { Orgao } = require('memoria-politica-model');
 
 module.exports = {
     name: "Eventos Relacionados aos Órgãos",

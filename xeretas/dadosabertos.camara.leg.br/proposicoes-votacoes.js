@@ -2,7 +2,7 @@
 
 const { crawler } = require('.');
 
-const { Proposicao, Votacao } = require.main.require('./model');
+const { Proposicao, Votacao } = require('memoria-politica-model');
 
 module.exports = {
     name: "Votações da Proposição",

@@ -3,8 +3,7 @@ const glob = require('glob');
 const path = require('path');
 const _ = require('lodash');
 
-// Mounted by docker-compose, from memoria-politica
-const model = require.main.require('./model');
+const model = require('memoria-politica-model');
 
 program.version('1')
     .action(function(env){
