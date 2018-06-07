@@ -20,9 +20,11 @@
     "sequelize": "^4.33.3",
     "string": "^3.3.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "jest": "^23.1.0"
+  },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC"
