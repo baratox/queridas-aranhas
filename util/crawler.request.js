@@ -17,6 +17,8 @@ module.exports = crawler.trick('request', function(options, resolution) {
     }
 
     let context = this;
+    return doRequest(context, options);
+
     function repeatRequestIfNextPage(response) {
         var success = response && /^2/.test('' + response.statusCode);
         // If headers has a next page link, request it too using same crawling options.
@@ -25,10 +27,11 @@ module.exports = crawler.trick('request', function(options, resolution) {
                             .filter((link) => link.match(/rel="next"/));
             if (links.length > 0) {
                 var next = new RegExp(/<(.*)>/).exec(links[0])[1];
+
                 return [
                     response,
                     // Repeat this 'request' step, only changing the url
-                    context.step.moonwalk({ 'url': next, 'baseUrl': null }),
+                    doRequest(context, Object.assign({}, options, { 'url': next, 'baseUrl': null }))
                 ]
             }
         }
@@ -36,35 +39,33 @@ module.exports = crawler.trick('request', function(options, resolution) {
         return response;
     }
 
-    // if (Math.floor(Math.random() * Math.floor(10)) % 3 == 0) {
-    //     return Promise.resolve(new Error("That's an odd Request, Sir"));
-    // }
-
-    if (typeof options.url === 'string' || options.url instanceof String) {
-        var req = makeRequest(context, options)
-        if (options.requestNextPage) {
-            return req.then(repeatRequestIfNextPage)
-        } else {
-            return req
-        }
-
-    } else if (Array.isArray(options.url)) {
-        var promises = [];
-        options.url.forEach((url) => {
-            var urlRequest = Object.assign({}, options, { 'url': url })
-
-            var req = makeRequest(context, urlRequest)
+    function doRequest(context, options) {
+        if (typeof options.url === 'string' || options.url instanceof String) {
+            var req = makeRequest(context, options)
             if (options.requestNextPage) {
-                req = req.then(repeatRequestIfNextPage)
+                return req.then(repeatRequestIfNextPage)
+            } else {
+                return req
             }
 
-            promises.push(req)
-        })
-        return promises;
+        } else if (Array.isArray(options.url)) {
+            var promises = [];
+            options.url.forEach((url) => {
+                var urlRequest = Object.assign({}, options, { 'url': url })
 
-    } else {
-        console.log("Invalid Options:", JSON.stringify(options));
-        throw Error("Missing request URL.");
+                var req = makeRequest(context, urlRequest)
+                if (options.requestNextPage) {
+                    req = req.then(repeatRequestIfNextPage)
+                }
+
+                promises.push(req)
+            })
+            return promises;
+
+        } else {
+            console.log("Invalid Options:", JSON.stringify(options));
+            throw Error("Missing request URL.");
+        }
     }
 }, {
     'requestNextPage': true,
