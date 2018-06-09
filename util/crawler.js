@@ -143,6 +143,10 @@ function Crawler(inheritedTricks = {}) {
     }
 
     function walkOneStep(context, step = 0, resolution, options) {
+        if (context.steps.length === 0) {
+            return Promise.resolve();
+        }
+
         if (!_.get(context, 'alive', true)) {
             if (DEBUG) {
                 console.error("Previous step resolved to an Error:", resolution.message);
