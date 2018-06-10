@@ -31,3 +31,20 @@ test("Crawler.stepByStep forks when step returns an Array.", async () => {
     expect(result).toHaveLength(4)
     expect(result).toEqual(expect.arrayContaining([11, 12, 13, 14]))
 })
+
+test("Crawler.stepByStep recursively forks with Array results.", async () => {
+    var crawl = crawler.stepByStep([
+        (result) => "the ",
+        (result) => ["moon", "sun", "planet"].map(a => result + a),
+        (result) => result + " is ",
+        (result) => ["alive", "flying"].map(a => result + a)
+    ])
+
+    var result = await crawl()
+    expect(result).toHaveLength(3)
+    expect(result).toEqual(expect.arrayContaining([
+        ["the moon is alive", "the moon is flying"],
+        ["the sun is alive", "the sun is flying"],
+        ["the planet is alive", "the planet is flying"]
+    ]))
+})
