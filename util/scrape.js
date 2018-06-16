@@ -89,14 +89,6 @@ function SchemaParser(schema) {
 }
 
 function Scraper(selector, schema) {
-    this.select = (selector) => {
-        return new Scraper(selector, schema);
-    };
-
-    this.as = (schema) => {
-        return new Scraper(selector, schema);
-    }
-
     function getContentType(response) {
         // Consider using the `content-type` library for a robust comparison.
         var contentType = response.headers['content-type'];
@@ -146,4 +138,4 @@ function Scraper(selector, schema) {
     }
 }
 
-module.exports = new Scraper();
+module.exports = Scraper;

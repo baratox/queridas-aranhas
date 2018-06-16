@@ -3,7 +3,6 @@
 const _ = require('lodash');
 
 const crawler = require('./crawler.js');
-const scraper = require('./scrape.js');
 
 const DEBUG = process.env.DEBUG == 1 || false;
 

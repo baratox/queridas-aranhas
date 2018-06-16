@@ -3,7 +3,7 @@
 const _ = require('lodash');
 
 const crawler = require('./crawler.js');
-const scraper = require('./scrape.js');
+const Scraper = require('./scrape.js');
 
 const DEBUG = process.env.DEBUG == 1 || false;
 
@@ -20,17 +20,13 @@ module.exports = crawler.trick('scrape', function(options, response) {
 
     if (DEBUG) { console.debug("Scraping", response.request.uri.href); }
 
-    var configuredScraper = scraper;
-    if (options.select) {
-        configuredScraper = configuredScraper.select(options.select);
-    }
-
+    var scraper = new Scraper(options.select, options.schema);
     if (options.scrape) {
-        response.scraped = configuredScraper.as(options.schema).scrape(response);
+        response.scraped = scraper.scrape(response);
     }
 
     if (options.describe) {
-        response.schema = configuredScraper.describe(response);
+        response.schema = scraper.describe(response);
     }
 
     return response;
@@ -39,5 +35,5 @@ module.exports = crawler.trick('scrape', function(options, response) {
     'scrape': true,
     'describe': false,
     'select': undefined,
-    'schema': function() { }
+    'schema': function(scrape) { }
 });
